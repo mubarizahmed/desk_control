@@ -81,6 +81,7 @@ static const char *TAG = "example";
 static _lock_t lvgl_api_lock;
 
 extern void example_lvgl_demo_ui(lv_disp_t *disp);
+extern void addCircle(int centerX, int centerY);
 
 static bool example_notify_lvgl_flush_ready(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_io_event_data_t *edata, void *user_ctx) {
     lv_display_t *disp = (lv_display_t *)user_ctx;
@@ -132,6 +133,7 @@ static void example_lvgl_flush_cb(lv_display_t *disp, const lv_area_t *area, uin
 
 #if CONFIG_EXAMPLE_LCD_TOUCH_ENABLED
 static void example_lvgl_touch_cb(lv_indev_t *indev, lv_indev_data_t *data) {
+    //
     uint16_t touchpad_x[1] = {0};
     uint16_t touchpad_y[1] = {0};
     uint8_t touchpad_cnt = 0;
@@ -142,14 +144,33 @@ static void example_lvgl_touch_cb(lv_indev_t *indev, lv_indev_data_t *data) {
     bool touchpad_pressed = esp_lcd_touch_get_coordinates(touch_pad, touchpad_x, touchpad_y, NULL, &touchpad_cnt, 1);
 
     if (touchpad_pressed && touchpad_cnt > 0) {
+
+        ESP_LOGI(TAG, "Touchpad: %d, %d", touchpad_x[0], touchpad_y[0]);
+
+        // correction - mirror both X and Y axis
+        int32_t temp_x = touchpad_x[0];
+        int32_t temp_y = touchpad_y[0];
+        // touchpad_x[0] = EXAMPLE_LCD_V_RES - (((touchpad_y[0] - 15) * EXAMPLE_LCD_V_RES) / 280);
+        // touchpad_y[0] = EXAMPLE_LCD_H_RES - (((temp_x - 10) * EXAMPLE_LCD_H_RES) / 215);
+
+        touchpad_x[0] = 0.02 * temp_x - 1.1 * temp_y + 330.38;
+        touchpad_y[0] = - 1.163 * temp_x + 0.02 * temp_y + 253.89;
+
+        ESP_LOGI(TAG, "Touchpad CORRECTED: %d, %d", touchpad_x[0], touchpad_y[0]);
+
         data->point.x = touchpad_x[0];
         data->point.y = touchpad_y[0];
         data->state = LV_INDEV_STATE_PRESSED;
-        ESP_LOGI(TAG, "Touchpad: %ld, %ld", data->point.x, data->point.y);
+        // ESP_LOGI(TAG, "Touchpad: %ld, %ld", data->point.x, data->point.y);
+
+        // Lock the mutex due to the LVGL APIs are not thread-safe
+        // _lock_acquire(&lvgl_api_lock);
+        addCircle(touchpad_x[0], touchpad_y[0]);
+        // _lock_release(&lvgl_api_lock);
+
     } else {
         data->state = LV_INDEV_STATE_RELEASED;
     }
-    
 }
 #endif
 
@@ -289,14 +310,14 @@ void app_main(void) {
     };
     esp_lcd_touch_handle_t tp = NULL;
 
-// #if CONFIG_EXAMPLE_LCD_TOUCH_CONTROLLER_STMPE610
-//     ESP_LOGI(TAG, "Initialize touch controller STMPE610");
-//     ESP_ERROR_CHECK(esp_lcd_touch_new_spi_stmpe610(tp_io_handle, &tp_cfg, &tp));
+    // #if CONFIG_EXAMPLE_LCD_TOUCH_CONTROLLER_STMPE610
+    //     ESP_LOGI(TAG, "Initialize touch controller STMPE610");
+    //     ESP_ERROR_CHECK(esp_lcd_touch_new_spi_stmpe610(tp_io_handle, &tp_cfg, &tp));
 
-// #elif CONFIG_EXAMPLE_LCD_TOUCH_CONTROLLER_XPT2046
+    // #elif CONFIG_EXAMPLE_LCD_TOUCH_CONTROLLER_XPT2046
     ESP_LOGI(TAG, "Initialize touch controller XPT2046");
     ESP_ERROR_CHECK(esp_lcd_touch_new_spi_xpt2046(tp_io_handle, &tp_cfg, &tp));
-// #endif 
+    // #endif
 
     static lv_indev_t *indev;
     indev = lv_indev_create(); // Input device driver (Touch)
