@@ -9,11 +9,16 @@
 
 #include "ui.h"
 #include "lvgl.h"
+#include "string.h"
 
 static lv_obj_t *btn;
+static lv_obj_t *scr;
+static lv_obj_t *label;
 static lv_display_rotation_t rotation = LV_DISP_ROTATION_0;
 
 static lv_obj_t *circle = NULL;
+
+static const char *TAG = "UI";
 
 static int currentCenterX;
 static int currentCenterY;
@@ -92,14 +97,14 @@ void addCircles(lv_obj_t *c, int centerX, int centerY, int size) {
 }
 
 void lvgl_demo_ui(lv_display_t *disp) {
-    lv_obj_t *scr = lv_display_get_screen_active(disp);
+    scr = lv_display_get_screen_active(disp);
 
-    btn = lv_button_create(scr);
-    lv_obj_t *lbl = lv_label_create(btn);
-    lv_label_set_text_static(lbl, LV_SYMBOL_REFRESH " ROTATE");
-    lv_obj_align(btn, LV_ALIGN_BOTTOM_LEFT, 30, -30);
-    /*Button event*/
-    lv_obj_add_event_cb(btn, btn_cb, LV_EVENT_CLICKED, disp);
+    // btn = lv_button_create(scr);
+    // lv_obj_t *lbl = lv_label_create(btn);
+    // lv_label_set_text_static(lbl, LV_SYMBOL_REFRESH " ROTATE");
+    // lv_obj_align(btn, LV_ALIGN_BOTTOM_LEFT, 30, -30);
+    // /*Button event*/
+    // lv_obj_add_event_cb(btn, btn_cb, LV_EVENT_CLICKED, disp);
 
     /*Create an Arc*/
     lv_obj_t *arc = lv_arc_create(scr);
@@ -108,6 +113,16 @@ void lvgl_demo_ui(lv_display_t *disp) {
     lv_obj_remove_style(arc, NULL, LV_PART_KNOB);   /*Be sure the knob is not displayed*/
     lv_obj_remove_flag(arc, LV_OBJ_FLAG_CLICKABLE); /*To not allow adjusting by click*/
     lv_obj_center(arc);
+
+    // Create text weather data
+    label = lv_label_create(scr);
+    lv_label_set_text(label, "T °C");
+    lv_obj_center(label);
+    lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_text_color(label, lv_color_hex(0x000000), 0);
+    lv_obj_set_style_text_font(label, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_letter_space(label, 2, 0);
+
 
     lv_anim_t a;
     lv_anim_init(&a);
@@ -119,11 +134,64 @@ void lvgl_demo_ui(lv_display_t *disp) {
     lv_anim_set_values(&a, 0, 100);
     lv_anim_start(&a);
 
-    // create circles at 3points
-    lv_obj_t *c1 = NULL;
-    lv_obj_t *c2 = NULL;
-    lv_obj_t *c3 = NULL;
-    addCircles(c1, 64, 200, 5);
-    addCircles(c2, 170, 170, 10);
-    addCircles(c3, 230, 70, 15);
+    // // create circles at 3points
+    // lv_obj_t *c1 = NULL;
+    // lv_obj_t *c2 = NULL;
+    // lv_obj_t *c3 = NULL;
+    // addCircles(c1, 64, 200, 5);
+    // addCircles(c2, 170, 170, 10);
+    // addCircles(c3, 230, 70, 15);
+}
+
+/**
+ * @brief Set the weather data to the label.
+ * 
+ * 
+ *
+ * @param data Weather data string in the format "weather_location_temp_wind_humidity_moon_pressure"
+ */
+void setWeatherData(char *data) {
+    // split on _ 
+    char *token = strtok(data, "_");
+    char *temp = NULL;
+    char *wind = NULL;
+    char *humidity = NULL;
+    char *pressure = NULL;
+    char *moon = NULL;
+    char *weather = NULL;
+    char *location = NULL;
+
+    int i = 0;
+    while (token != NULL) {
+        switch (i) {
+        case 0:
+            weather = token;
+            break;
+        case 1:
+            location = token;
+            break;
+        case 2:
+            temp = token;
+            break;
+        case 3:
+            wind = token;
+            break;
+        case 4:
+            humidity = token;
+            break;
+        case 5:
+            moon = token;
+            break;
+        case 6:
+            pressure = token;
+            break;
+        default:
+            break;
+        }
+        i++;
+        token = strtok(NULL, "_");
+    }
+    // set the text of the label to the weather data
+    lv_label_set_text(label, temp);
+    // ESP_LOGI(TAG, "Weather data: %s", data);
 }

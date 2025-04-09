@@ -14,6 +14,7 @@
 
 #include "weather_serv.h"
 #include "wifi_manager.h"
+#include "ui.h"
 
 static const char *TAG = "WEATHER_SERV";
 
@@ -44,6 +45,8 @@ esp_err_t http_event_handler(esp_http_client_event_t *evt) {
 
         ESP_LOGI(TAG, "HTTP_EVENT_ON_DATA: length of data: %d", evt->data_len);
         ESP_LOGI(TAG, "HTTP_EVENT_ON_DATA: \n %.*s\n", evt->data_len, (char *)evt->data);
+
+        setWeatherData(evt->data);
 
         break;
     }
@@ -84,18 +87,23 @@ void getWeather(esp_http_client_config_t config_get) {
     }
 }
 
+/**
+ * @brief Task to fetch weather data from wttr.in every 30 seconds.
+ * 
+ *
+ * @param pvParameters Pointer to task parameters (not used)
+ */
 void weather_task(void *pvParameters) {
     esp_http_client_config_t config_get = {
-        .url = "https://wttr.in/Bochum?format=j1",
+        .url = "https://wttr.in/Bochum?format=%c_%l_%t_%w_%h_%m_%p",
         .method = HTTP_METHOD_GET,
         .crt_bundle_attach = esp_crt_bundle_attach,
         .event_handler = http_event_handler,
-
     };
 
     while (1) {
         getWeather(config_get); // your logic
         ESP_LOGI(TAG, "Free heap: %ld", esp_get_free_heap_size());
-        vTaskDelay(pdMS_TO_TICKS(10000)); // already included inside getWeather, optional here
+        vTaskDelay(pdMS_TO_TICKS(30000)); // already included inside getWeather, optional here
     }
 }
