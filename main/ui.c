@@ -1,11 +1,13 @@
-/*
- * SPDX-FileCopyrightText: 2021-2024 Espressif Systems (Shanghai) CO LTD
+/**
+ * @file ui.c
+ * @author Mubariz Ahmed (mubariz@mubariz.me)
+ * @brief LVGL UI
+ * @version 0.1
+ * @date 2025-04-09
  *
- * SPDX-License-Identifier: CC0-1.0
  */
 
-// This demo UI is adapted from LVGL official example: https://docs.lvgl.io/master/examples.html#loader-with-arc
-
+#include "ui.h"
 #include "lvgl.h"
 
 static lv_obj_t *btn;
@@ -70,7 +72,6 @@ void addCircle(int centerX, int centerY) {
 
 void addCircles(lv_obj_t *c, int centerX, int centerY, int size) {
     // delete the previous circle if it exists
-   
 
     // create style
     lv_style_t *style = malloc(sizeof(lv_style_t));
@@ -85,13 +86,12 @@ void addCircles(lv_obj_t *c, int centerX, int centerY, int size) {
     lv_obj_add_style(c, style, 0);
     lv_obj_clear_flag(c, LV_OBJ_FLAG_CLICKABLE);
 
-    //size is 6
+    // size is 6
     lv_obj_set_size(c, size, size);
     lv_obj_set_pos(c, centerX, centerY);
-
 }
 
-void example_lvgl_demo_ui(lv_display_t *disp) {
+void lvgl_demo_ui(lv_display_t *disp) {
     lv_obj_t *scr = lv_display_get_screen_active(disp);
 
     btn = lv_button_create(scr);
