@@ -314,7 +314,7 @@ void display_manager_init() {
     lv_indev_set_read_cb(indev, lvgl_touch_cb);
 
     ESP_LOGI(TAG, "Create LVGL task");
-    xTaskCreate(lvgl_port_task, "LVGL", LVGL_TASK_STACK_SIZE, NULL, LVGL_TASK_PRIORITY, NULL);
+    xTaskCreate(lvgl_port_task, "LVGL", 6 * LVGL_TASK_STACK_SIZE, NULL, LVGL_TASK_PRIORITY, NULL);
 
     lv_disp_set_rotation(display, LV_DISP_ROTATION_270);
 

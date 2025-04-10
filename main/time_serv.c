@@ -23,6 +23,10 @@ void time_task(void *pvParameters) {
 
     bool time_synced = false; // place this globally or at the top of your task
 
+	time_t now;
+	struct tm timeinfo;
+	char strftime_buf[64];
+	
     while (1) {
         if (wifi_connected && !time_synced) {
             // Configure SNTP
@@ -58,7 +62,7 @@ void time_task(void *pvParameters) {
                 ESP_LOGW(TAG, "SNTP sync failed after %d retries.", retry_count);
             }
 
-            // 🧼 Deinit SNTP to free memory
+            // Deinit SNTP to free memory
             esp_netif_sntp_deinit();
 
             // log the memory usage
@@ -66,9 +70,7 @@ void time_task(void *pvParameters) {
             ESP_LOGI(TAG, "Free heap size: %d bytes", free_heap);
 
         } else if (time_synced) {
-            time_t now;
-            struct tm timeinfo;
-            char strftime_buf[64];
+
 
             time(&now);
             localtime_r(&now, &timeinfo);

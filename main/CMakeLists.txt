@@ -22,6 +22,8 @@ idf_component_register(
     "fonts/jetbrains_mono_light_14.c"
     "fonts/jetbrains_mono_light_18.c"
     "fonts/jetbrains_mono_light_50.c"
+    "fonts/noto_color_emoji_50.c"
+    "fonts/noto_emoji_50.c"
   PRIV_REQUIRES esp_wifi nvs_flash esp_http_client mbedtls esp-tls esp_netif lwip
   INCLUDE_DIRS "." "fonts"
 )

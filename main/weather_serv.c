@@ -102,8 +102,8 @@ void weather_task(void *pvParameters) {
     };
 
     while (1) {
-        getWeather(config_get); // your logic
+        getWeather(config_get);
         ESP_LOGI(TAG, "Free heap: %ld", esp_get_free_heap_size());
-        vTaskDelay(pdMS_TO_TICKS(30000)); // already included inside getWeather, optional here
+        vTaskDelay(pdMS_TO_TICKS(120000)); 
     }
 }

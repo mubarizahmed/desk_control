@@ -53,9 +53,29 @@ void app_main(void) {
     }
     wifi_init_sta();
 
-    // create task to get time and keep widget updated
-    xTaskCreate(&time_task, "time_task", 1024*4, NULL, 3, NULL);
+    // // create task to get time and keep widget updated
+    xTaskCreate(&time_task, "time_task", 1024*10, NULL, 3, NULL);
 
-    // create new task to fetch data
-    xTaskCreate(&weather_task, "weather_task", 1024 * 10, NULL, 2, NULL);
+    // // create new task to fetch data
+    xTaskCreate(&weather_task, "weather_task", 1024 * 15, NULL, 2, NULL);
+
+    while (1) {
+        // print system state every second
+        TaskStatus_t *task_status_array = NULL;
+        UBaseType_t task_count = uxTaskGetNumberOfTasks();
+        task_status_array = (TaskStatus_t *)malloc(task_count * sizeof(TaskStatus_t));
+        if (task_status_array == NULL) {
+            ESP_LOGE(TAG, "Failed to allocate memory for task status array");
+            continue;
+        }
+        UBaseType_t task_count_filled = uxTaskGetSystemState(task_status_array, task_count, NULL);
+        for (UBaseType_t i = 0; i < task_count_filled; i++) {
+            ESP_LOGI(TAG, "Task: %s, State: %d, Priority: %d , HighWatermark: %ld", task_status_array[i].pcTaskName,
+                     task_status_array[i].eCurrentState, task_status_array[i].uxCurrentPriority,  task_status_array[i].usStackHighWaterMark);
+        }
+        free(task_status_array);
+
+
+        vTaskDelay(pdMS_TO_TICKS(60000)); // 1 minutes delay
+    }
 }
