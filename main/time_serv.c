@@ -57,6 +57,14 @@ void time_task(void *pvParameters) {
             } else {
                 ESP_LOGW(TAG, "SNTP sync failed after %d retries.", retry_count);
             }
+
+            // 🧼 Deinit SNTP to free memory
+            esp_netif_sntp_deinit();
+
+            // log the memory usage
+            size_t free_heap = esp_get_free_heap_size();
+            ESP_LOGI(TAG, "Free heap size: %d bytes", free_heap);
+
         } else if (time_synced) {
             time_t now;
             struct tm timeinfo;
@@ -69,6 +77,10 @@ void time_task(void *pvParameters) {
             ESP_LOGI(TAG, "The current date/time in Bochum is: %s", strftime_buf);
 
             setTime(timeinfo.tm_hour, timeinfo.tm_min);
+
+            // log the memory usage
+            size_t free_heap = esp_get_free_heap_size();
+            ESP_LOGI(TAG, "Free heap size: %d bytes", free_heap);
         }
 
         vTaskDelay(pdMS_TO_TICKS(30000));

@@ -54,8 +54,8 @@ void app_main(void) {
     wifi_init_sta();
 
     // create task to get time and keep widget updated
-    xTaskCreate(&time_task, "time_task", 1024*4, NULL, 5, NULL);
+    xTaskCreate(&time_task, "time_task", 1024*4, NULL, 3, NULL);
 
     // create new task to fetch data
-    xTaskCreate(&weather_task, "weather_task", 1024 * 10, NULL, 5, NULL);
+    xTaskCreate(&weather_task, "weather_task", 1024 * 10, NULL, 2, NULL);
 }
