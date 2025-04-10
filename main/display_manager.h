@@ -33,6 +33,9 @@
 #define LVGL_TASK_STACK_SIZE (4 * 1024) // Stack size for LVGL task
 #define LVGL_TASK_PRIORITY 2            // Priority for LVGL task
 
+
+extern _lock_t lvgl_api_lock; // mutex for LVGL API
+extern SemaphoreHandle_t lvgl_mutex; // mutex for LVGL API
 /*
  * PUBLIC FUNCTIONS
  */

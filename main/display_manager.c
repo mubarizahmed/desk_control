@@ -29,7 +29,8 @@
 
 static const char *TAG = "DISPLAY_MANAGER"; // Log tag
 
-static _lock_t lvgl_api_lock; // mutex for LVGL API
+_lock_t lvgl_api_lock;        // mutex for LVGL API
+SemaphoreHandle_t lvgl_mutex; // semaphore for LVGL API
 
 /**
  * @brief LVGL flush callback function. Called when LVGL needs to update the display.
@@ -132,8 +133,6 @@ static void lvgl_touch_cb(lv_indev_t *indev, lv_indev_data_t *data) {
         // int32_t rotated_y = LCD_V_RES - touchpad_x[0];
         // touchpad_x[0] = rotated_x;
         // touchpad_y[0] = rotated_y;
-  
-
 
         ESP_LOGI(TAG, "Touchpad CORRECTED: %d, %d", touchpad_x[0], touchpad_y[0]);
 
@@ -180,7 +179,6 @@ static void lvgl_port_task(void *arg) {
         _lock_release(&lvgl_api_lock);
         // in case of triggering a task watch dog time out
         time_till_next_ms = MAX(time_till_next_ms, time_threshold_ms);
-        // Wait for the next tick
         usleep(1000 * time_till_next_ms);
     }
 }
@@ -245,6 +243,11 @@ void display_manager_init() {
     gpio_set_level(PIN_NUM_BK_LIGHT, LCD_BK_LIGHT_ON_LEVEL);
 
     ESP_LOGI(TAG, "Initialize LVGL library");
+    // lvgl_mutex = xSemaphoreCreateRecursiveMutex();
+    // if (lvgl_mutex == NULL) {
+    //     ESP_LOGE(TAG, "Failed to create LVGL mutex");
+    //     return;
+    // }
     lv_init();
 
     // create a lvgl display

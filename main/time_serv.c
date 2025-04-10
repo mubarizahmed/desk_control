@@ -13,6 +13,7 @@
 // #include "esp_netif.h"
 #include "esp_netif_sntp.h"
 
+#include "display_manager.h"
 #include "time_serv.h"
 #include "ui.h"
 #include "wifi_manager.h"
@@ -23,10 +24,10 @@ void time_task(void *pvParameters) {
 
     bool time_synced = false; // place this globally or at the top of your task
 
-	time_t now;
-	struct tm timeinfo;
-	char strftime_buf[64];
-	
+    time_t now;
+    struct tm timeinfo;
+    char strftime_buf[64];
+
     while (1) {
         if (wifi_connected && !time_synced) {
             // Configure SNTP
@@ -55,7 +56,19 @@ void time_task(void *pvParameters) {
                 strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
                 ESP_LOGI(TAG, "The current date/time in Bochum is: %s", strftime_buf);
 
-                setTime(timeinfo.tm_hour, timeinfo.tm_min);
+                // if (xSemaphoreTakeRecursive(lvgl_mutex, pdMS_TO_TICKS(50))) {
+                //     setTime(timeinfo.tm_hour, timeinfo.tm_min);
+                //     xSemaphoreGiveRecursive(lvgl_mutex);
+                // } else {
+                //     ESP_LOGW(TAG, "Could not take LVGL mutex from time_task");
+                // }
+
+				_lock_acquire(&lvgl_api_lock);
+				// Handle LVGL tasks and events
+				setTime(timeinfo.tm_hour, timeinfo.tm_min);
+				_lock_release(&lvgl_api_lock);
+
+                // setTime(timeinfo.tm_hour, timeinfo.tm_min);
 
                 time_synced = true;
             } else {
@@ -71,14 +84,23 @@ void time_task(void *pvParameters) {
 
         } else if (time_synced) {
 
-
             time(&now);
             localtime_r(&now, &timeinfo);
 
             strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
             ESP_LOGI(TAG, "The current date/time in Bochum is: %s", strftime_buf);
 
-            setTime(timeinfo.tm_hour, timeinfo.tm_min);
+            // if (xSemaphoreTakeRecursive(lvgl_mutex, pdMS_TO_TICKS(50))) {
+            //     setTime(timeinfo.tm_hour, timeinfo.tm_min);
+            //     xSemaphoreGiveRecursive(lvgl_mutex);
+            // } else {
+            //     ESP_LOGW(TAG, "Could not take LVGL mutex from time_task");
+            // }
+
+			_lock_acquire(&lvgl_api_lock);
+			// Handle LVGL tasks and events
+			setTime(timeinfo.tm_hour, timeinfo.tm_min);
+			_lock_release(&lvgl_api_lock);
 
             // log the memory usage
             size_t free_heap = esp_get_free_heap_size();

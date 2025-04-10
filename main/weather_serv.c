@@ -12,9 +12,10 @@
 #include "esp_http_client.h"
 #include "esp_log.h"
 
+#include "display_manager.h"
+#include "ui.h"
 #include "weather_serv.h"
 #include "wifi_manager.h"
-#include "ui.h"
 
 static const char *TAG = "WEATHER_SERV";
 
@@ -46,7 +47,10 @@ esp_err_t http_event_handler(esp_http_client_event_t *evt) {
         ESP_LOGI(TAG, "HTTP_EVENT_ON_DATA: length of data: %d", evt->data_len);
         ESP_LOGI(TAG, "HTTP_EVENT_ON_DATA: \n %.*s\n", evt->data_len, (char *)evt->data);
 
+        // setWeatherData(evt->data);
+        _lock_acquire(&lvgl_api_lock);
         setWeatherData(evt->data);
+        _lock_release(&lvgl_api_lock);
 
         break;
     }
@@ -89,7 +93,7 @@ void getWeather(esp_http_client_config_t config_get) {
 
 /**
  * @brief Task to fetch weather data from wttr.in every 30 seconds.
- * 
+ *
  *
  * @param pvParameters Pointer to task parameters (not used)
  */
@@ -104,6 +108,6 @@ void weather_task(void *pvParameters) {
     while (1) {
         getWeather(config_get);
         ESP_LOGI(TAG, "Free heap: %ld", esp_get_free_heap_size());
-        vTaskDelay(pdMS_TO_TICKS(120000)); 
+        vTaskDelay(pdMS_TO_TICKS(120000));
     }
 }
