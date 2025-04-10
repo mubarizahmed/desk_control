@@ -102,6 +102,8 @@ void wifi_init_sta(void) {
             .sae_h2e_identifier = H2E_IDENTIFIER,
         },
     };
+    ESP_LOGI(TAG, "Setting WiFi configuration SSID %s...", ESP_WIFI_SSID);
+    ESP_LOGI(TAG, "Setting WiFi configuration password %s...", ESP_WIFI_PASS);
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_start());

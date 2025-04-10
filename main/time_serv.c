@@ -1,0 +1,76 @@
+/**
+ * @file TIME_serv.c
+ * @author Mubariz Ahmed (mubariz@mubariz.me)
+ * @brief Time service for getting current time.
+ * @version 0.1
+ * @date 2025-04-09
+ *
+ */
+
+#include "esp_err.h"
+#include "esp_log.h"
+#include "esp_sntp.h"
+// #include "esp_netif.h"
+#include "esp_netif_sntp.h"
+
+#include "time_serv.h"
+#include "ui.h"
+#include "wifi_manager.h"
+
+static const char *TAG = "TIME_SERV";
+
+void time_task(void *pvParameters) {
+
+    bool time_synced = false; // place this globally or at the top of your task
+
+    while (1) {
+        if (wifi_connected && !time_synced) {
+            // Configure SNTP
+            esp_sntp_config_t config = ESP_NETIF_SNTP_DEFAULT_CONFIG("pool.ntp.org");
+            esp_netif_sntp_init(&config);
+            esp_netif_sntp_start();
+
+            // Wait for synchronization
+            int retry = 0;
+            const int retry_count = 10;
+
+            while (esp_netif_sntp_sync_wait(2000 / portTICK_PERIOD_MS) == ESP_ERR_TIMEOUT && ++retry < retry_count) {
+                ESP_LOGI(TAG, "Waiting for system time to be set... (%d/%d)", retry, retry_count);
+            }
+
+            if (retry < retry_count) {
+                time_t now;
+                struct tm timeinfo;
+                char strftime_buf[64];
+
+                time(&now);
+                setenv("TZ", "CET-1CEST,M3.5.0,M10.5.0/3", 1);
+                tzset();
+
+                localtime_r(&now, &timeinfo);
+                strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
+                ESP_LOGI(TAG, "The current date/time in Bochum is: %s", strftime_buf);
+
+                setTime(timeinfo.tm_hour, timeinfo.tm_min);
+
+                time_synced = true;
+            } else {
+                ESP_LOGW(TAG, "SNTP sync failed after %d retries.", retry_count);
+            }
+        } else if (time_synced) {
+            time_t now;
+            struct tm timeinfo;
+            char strftime_buf[64];
+
+            time(&now);
+            localtime_r(&now, &timeinfo);
+
+            strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
+            ESP_LOGI(TAG, "The current date/time in Bochum is: %s", strftime_buf);
+
+            setTime(timeinfo.tm_hour, timeinfo.tm_min);
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(30000));
+    }
+}

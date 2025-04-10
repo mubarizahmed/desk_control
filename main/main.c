@@ -25,6 +25,7 @@
 #include "ui.h"
 #include "weather_serv.h"
 #include "wifi_manager.h"
+#include "time_serv.h"
 
 static const char *TAG = "MAIN";
 
@@ -51,6 +52,9 @@ void app_main(void) {
         esp_log_level_set("wifi", CONFIG_LOG_MAXIMUM_LEVEL);
     }
     wifi_init_sta();
+
+    // create task to get time and keep widget updated
+    xTaskCreate(&time_task, "time_task", 1024*4, NULL, 5, NULL);
 
     // create new task to fetch data
     xTaskCreate(&weather_task, "weather_task", 1024 * 10, NULL, 5, NULL);
