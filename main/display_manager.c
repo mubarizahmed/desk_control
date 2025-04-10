@@ -124,8 +124,16 @@ static void lvgl_touch_cb(lv_indev_t *indev, lv_indev_data_t *data) {
         int32_t temp_x = touchpad_x[0];
         int32_t temp_y = touchpad_y[0];
 
-        touchpad_x[0] = 0.02 * temp_x - 1.1 * temp_y + 330.38;
-        touchpad_y[0] = -1.163 * temp_x + 0.02 * temp_y + 253.89;
+        touchpad_x[0] = 0.0672 * temp_x - 0.0040 * temp_y - 11.16;
+        touchpad_y[0] = 0.0004 * temp_x - 0.0920 * temp_y + 333.81;
+
+        // rotate 270 degrees
+        // int32_t rotated_x = LCD touchpad_y[0];
+        // int32_t rotated_y = LCD_V_RES - touchpad_x[0];
+        // touchpad_x[0] = rotated_x;
+        // touchpad_y[0] = rotated_y;
+  
+
 
         ESP_LOGI(TAG, "Touchpad CORRECTED: %d, %d", touchpad_x[0], touchpad_y[0]);
 
@@ -218,7 +226,7 @@ void display_manager_init() {
     esp_lcd_panel_handle_t panel_handle = NULL;
     esp_lcd_panel_dev_config_t panel_config = {
         .reset_gpio_num = PIN_NUM_LCD_RST,
-        .rgb_ele_order = LCD_RGB_ELEMENT_ORDER_BGR,
+        .rgb_ele_order = LCD_RGB_ELEMENT_ORDER_RGB,
         .bits_per_pixel = 16,
     };
 
@@ -307,6 +315,8 @@ void display_manager_init() {
 
     ESP_LOGI(TAG, "Create LVGL task");
     xTaskCreate(lvgl_port_task, "LVGL", LVGL_TASK_STACK_SIZE, NULL, LVGL_TASK_PRIORITY, NULL);
+
+    lv_disp_set_rotation(display, LV_DISP_ROTATION_270);
 
     ESP_LOGI(TAG, "Display LVGL Meter Widget");
     // Lock the mutex due to the LVGL APIs are not thread-safe
