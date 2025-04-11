@@ -128,11 +128,11 @@ static void lvgl_touch_cb(lv_indev_t *indev, lv_indev_data_t *data) {
         touchpad_x[0] = 0.0672 * temp_x - 0.0040 * temp_y - 11.16;
         touchpad_y[0] = 0.0004 * temp_x - 0.0920 * temp_y + 333.81;
 
-        // rotate 270 degrees
-        // int32_t rotated_x = LCD touchpad_y[0];
-        // int32_t rotated_y = LCD_V_RES - touchpad_x[0];
-        // touchpad_x[0] = rotated_x;
-        // touchpad_y[0] = rotated_y;
+        // rotate 270 degrees - LVGL does its own rotation when rotating screen!
+        int32_t temp_x2 = touchpad_x[0];
+        int32_t temp_y2 = touchpad_y[0];
+        touchpad_x[0] = LCD_H_RES - temp_y2;
+        touchpad_y[0] = temp_x2;
 
         ESP_LOGI(TAG, "Touchpad CORRECTED: %d, %d", touchpad_x[0], touchpad_y[0]);
 
@@ -141,7 +141,7 @@ static void lvgl_touch_cb(lv_indev_t *indev, lv_indev_data_t *data) {
         data->state = LV_INDEV_STATE_PRESSED;
 
         // add a circle to the display at the touch coordinates
-        addCircle(touchpad_x[0], touchpad_y[0]);
+        // addCircle(touchpad_x[0], touchpad_y[0]);
 
     } else {
         data->state = LV_INDEV_STATE_RELEASED;
