@@ -22,6 +22,7 @@
 #include "display_manager.h"
 #include "esp_event.h"
 #include "pin_definitions.h"
+#include "pomodoro.h"
 #include "time_serv.h"
 #include "ui.h"
 #include "weather_serv.h"
@@ -58,6 +59,9 @@ void app_main(void) {
 
     // // create new task to fetch data
     xTaskCreate(&weather_task, "weather_task", 1024 * 15, NULL, 2, NULL);
+
+    // // create new task for pomodoro
+    xTaskCreate(&pomodoro_task, "pomodoro_task", 1024 * 1, NULL, 4, NULL);
 #ifdef DEBUG
     while (1) {
 

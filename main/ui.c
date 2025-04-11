@@ -10,6 +10,7 @@
 #include "ui.h"
 #include "esp_log.h"
 #include "lvgl.h"
+#include "pomodoro.h"
 #include "string.h"
 
 // colors
@@ -66,6 +67,9 @@ static lv_obj_t *task_2_label;
 static lv_obj_t *task_3_label;
 static lv_obj_t *task_4_label;
 
+static lv_obj_t *pomodoro_overlay;
+static lv_obj_t *pomodoro_overlay_label;
+
 static lv_obj_t *circle = NULL;
 
 static const char *TAG = "UI";
@@ -73,14 +77,41 @@ static const char *TAG = "UI";
 static int currentCenterX;
 static int currentCenterY;
 
-static void btn_cb(lv_event_t *e) {
-    // lv_display_t *disp = lv_event_get_user_data(e);
-    // rotation++;
-    // if (rotation > LV_DISP_ROTATION_270) {
-    //     rotation = LV_DISP_ROTATION_0;
-    // }
-    // lv_disp_set_rotation(disp, rotation);
+static void pomodoro_cb(lv_event_t *e) {
+    // get user data
+    int8_t *v = (int8_t *)lv_event_get_user_data(e);
+    ESP_LOGI(TAG, "Pomodoro cb %d", *v);
+
+    startPomodoro(*v);
+
+    // enable overlay
+    lv_obj_remove_flag(pomodoro_overlay, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_remove_flag(pomodoro_overlay_label, LV_OBJ_FLAG_HIDDEN);
+
+    char pomodoro_time[8];
+    pomodoro_time[0] = '0' + (*v / 10); // Tens digit
+    pomodoro_time[1] = '0' + (*v % 10); // Units digit
+    pomodoro_time[2] = ' ';
+    pomodoro_time[3] = 'm';  // Minutes
+    pomodoro_time[4] = 'i';  // Minutes
+    pomodoro_time[5] = 'n';  // Minutes
+    pomodoro_time[6] = 's';  // Minutes
+    pomodoro_time[7] = '\0'; // Null terminator
+
+    lv_label_set_text(pomodoro_overlay_label, pomodoro_time);
 }
+
+static void pomodoro_stop_cb(lv_event_t *e) {
+    // get user data
+    stopPomodoro();
+
+    // enable overlay
+    lv_obj_add_flag(pomodoro_overlay, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(pomodoro_overlay_label, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_style_bg_color(pomodoro_overlay, UI_BLACK, 0);
+    lv_obj_set_style_text_color(pomodoro_overlay_label, UI_WHITE, 0);
+}
+
 static void set_angle(void *obj, int32_t v) {
     lv_arc_set_value(obj, v);
 }
@@ -396,6 +427,10 @@ void createPomodoroWidget() {
     lv_obj_set_style_bg_color(p1_rect, UI_WHITE, 0);
     lv_obj_remove_border_paddin_scrollbar(p1_rect);
     lv_obj_align_to(p1_rect, rect, LV_ALIGN_TOP_LEFT, 48, 8);
+    lv_obj_add_flag(p1_rect, LV_OBJ_FLAG_CLICKABLE);
+    int8_t *p1_time = malloc(sizeof(int8_t));
+    *p1_time = 2;
+    lv_obj_add_event_cb(p1_rect, pomodoro_cb, LV_EVENT_CLICKED, p1_time);
 
     lv_obj_t *p1_label = lv_label_create(p1_rect);
     lv_label_set_text(p1_label, "30\nmin");
@@ -410,6 +445,10 @@ void createPomodoroWidget() {
     lv_obj_set_style_bg_color(p2_rect, UI_WHITE, 0);
     lv_obj_remove_border_paddin_scrollbar(p2_rect);
     lv_obj_align_to(p2_rect, rect, LV_ALIGN_TOP_LEFT, 94, 8);
+    lv_obj_add_flag(p2_rect, LV_OBJ_FLAG_CLICKABLE);
+    int8_t *p2_time = malloc(sizeof(int8_t));
+    *p2_time = 45;
+    lv_obj_add_event_cb(p2_rect, pomodoro_cb, LV_EVENT_CLICKED, p2_time);
 
     lv_obj_t *p2_label = lv_label_create(p2_rect);
     lv_label_set_text(p2_label, "45\nmin");
@@ -425,6 +464,10 @@ void createPomodoroWidget() {
     lv_obj_set_style_radius(p3_rect, 0, LV_PART_MAIN);
     lv_obj_remove_border_paddin_scrollbar(p3_rect);
     lv_obj_align_to(p3_rect, rect, LV_ALIGN_TOP_LEFT, 140, 8);
+    lv_obj_add_flag(p3_rect, LV_OBJ_FLAG_CLICKABLE);
+    int8_t *p3_time = malloc(sizeof(int8_t));
+    *p3_time = 60;
+    lv_obj_add_event_cb(p3_rect, pomodoro_cb, LV_EVENT_CLICKED, p3_time);
 
     lv_obj_t *p3_label = lv_label_create(p3_rect);
     lv_label_set_text(p3_label, "1\nHR");
@@ -439,6 +482,10 @@ void createPomodoroWidget() {
     lv_obj_set_style_bg_color(p4_rect, UI_WHITE, 0);
     lv_obj_remove_border_paddin_scrollbar(p4_rect);
     lv_obj_align_to(p4_rect, rect, LV_ALIGN_TOP_LEFT, 186, 8);
+    lv_obj_add_flag(p4_rect, LV_OBJ_FLAG_CLICKABLE);
+    int8_t *p4_time = malloc(sizeof(int8_t));
+    *p4_time = 90;
+    lv_obj_add_event_cb(p4_rect, pomodoro_cb, LV_EVENT_CLICKED, p4_time);
 
     lv_obj_t *p4_label = lv_label_create(p4_rect);
     lv_label_set_text(p4_label, "1.5\nHR");
@@ -447,6 +494,22 @@ void createPomodoroWidget() {
     lv_obj_set_style_text_color(p4_label, UI_BLACK, 0);
     lv_obj_set_style_text_align(p4_label, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_center(p4_label);
+
+    pomodoro_overlay = lv_obj_create(rect);
+    lv_obj_set_size(pomodoro_overlay, 182, 50);
+    lv_obj_set_style_bg_color(pomodoro_overlay, UI_BLACK, 0);
+    lv_obj_remove_border_paddin_scrollbar(pomodoro_overlay);
+    lv_obj_align_to(pomodoro_overlay, rect, LV_ALIGN_TOP_LEFT, 44, 0);
+    lv_obj_add_flag(pomodoro_overlay, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_event_cb(pomodoro_overlay, pomodoro_stop_cb, LV_EVENT_CLICKED, NULL);
+
+    pomodoro_overlay_label = lv_label_create(pomodoro_overlay);
+    lv_label_set_text(pomodoro_overlay_label, "TIME'S UP!");
+    lv_obj_set_style_text_font(pomodoro_overlay_label, &jetbrains_mono_bold_18, 0);
+    lv_obj_set_style_text_color(pomodoro_overlay_label, UI_RED, 0);
+    lv_obj_set_style_text_align(pomodoro_overlay_label, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_center(pomodoro_overlay_label);
+    lv_obj_add_flag(pomodoro_overlay_label, LV_OBJ_FLAG_HIDDEN);
 }
 
 void createSpotifyWidget() {
@@ -535,22 +598,22 @@ void lv_obj_remove_border_paddin_scrollbar(lv_obj_t *obj) {
 void lvgl_demo_ui(lv_display_t *disp) {
     scr = lv_display_get_screen_active(disp);
 
-    /*Create an Arc*/
-    lv_obj_t *arc = lv_arc_create(scr);
-    lv_arc_set_rotation(arc, 270);
-    lv_arc_set_bg_angles(arc, 0, 360);
-    lv_obj_remove_style(arc, NULL, LV_PART_KNOB);   /*Be sure the knob is not displayed*/
-    lv_obj_remove_flag(arc, LV_OBJ_FLAG_CLICKABLE); /*To not allow adjusting by click*/
-    lv_obj_center(arc);
+    // /*Create an Arc*/
+    // lv_obj_t *arc = lv_arc_create(scr);
+    // lv_arc_set_rotation(arc, 270);
+    // lv_arc_set_bg_angles(arc, 0, 360);
+    // lv_obj_remove_style(arc, NULL, LV_PART_KNOB);   /*Be sure the knob is not displayed*/
+    // lv_obj_remove_flag(arc, LV_OBJ_FLAG_CLICKABLE); /*To not allow adjusting by click*/
+    // lv_obj_center(arc);
 
-    // Create text weather data
-    label = lv_label_create(scr);
-    lv_label_set_text(label, "T °C");
-    lv_obj_center(label);
-    lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_set_style_text_color(label, lv_color_hex(0x000000), 0);
-    lv_obj_set_style_text_font(label, &lv_font_montserrat_14, 0);
-    lv_obj_set_style_text_letter_space(label, 2, 0);
+    // // Create text weather data
+    // label = lv_label_create(scr);
+    // lv_label_set_text(label, "T °C");
+    // lv_obj_center(label);
+    // lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
+    // lv_obj_set_style_text_color(label, lv_color_hex(0x000000), 0);
+    // lv_obj_set_style_text_font(label, &lv_font_montserrat_14, 0);
+    // lv_obj_set_style_text_letter_space(label, 2, 0);
 
     createTimeWidget();
     createTitleWidget();
@@ -561,15 +624,15 @@ void lvgl_demo_ui(lv_display_t *disp) {
     createPomodoroWidget();
     createSpotifyWidget();
 
-    lv_anim_t a;
-    lv_anim_init(&a);
-    lv_anim_set_var(&a, arc);
-    lv_anim_set_exec_cb(&a, set_angle);
-    lv_anim_set_duration(&a, 1000);
-    lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE); /*Just for the demo*/
-    lv_anim_set_repeat_delay(&a, 500);
-    lv_anim_set_values(&a, 0, 100);
-    lv_anim_start(&a);
+    // lv_anim_t a;
+    // lv_anim_init(&a);
+    // lv_anim_set_var(&a, arc);
+    // lv_anim_set_exec_cb(&a, set_angle);
+    // lv_anim_set_duration(&a, 1000);
+    // lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE); /*Just for the demo*/
+    // lv_anim_set_repeat_delay(&a, 500);
+    // lv_anim_set_values(&a, 0, 100);
+    // lv_anim_start(&a);
 
     // // CALIBRATION
     // // create circles at 5 points
@@ -695,4 +758,19 @@ void setTime(int hr, int min, char *date) {
     lv_label_set_text(time_hr_label, hr_str);
     lv_label_set_text(time_min_label, min_str);
     lv_label_set_text(date_label, date);
+}
+
+void flashPomodoroOverlay(bool red) {
+
+    if (red) {
+        lv_obj_set_style_bg_color(pomodoro_overlay, UI_RED, 0);
+        lv_obj_set_style_text_color(pomodoro_overlay_label, UI_WHITE, 0);
+    } else {
+        lv_obj_set_style_bg_color(pomodoro_overlay, UI_WHITE, 0);
+        lv_obj_set_style_text_color(pomodoro_overlay_label, UI_BLACK, 0);
+    }
+}
+
+void setPomodoro(char *text) {
+    lv_label_set_text(pomodoro_overlay_label, text);
 }

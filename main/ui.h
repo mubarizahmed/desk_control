@@ -21,5 +21,7 @@ void lv_obj_remove_border_paddin_scrollbar(lv_obj_t *sp_cover_rect);
 void addCircles(lv_obj_t *c, int centerX, int centerY, int size);
 void setWeatherData(char *data);
 void setTime(int hr, int min, char *date);
+void flashPomodoroOverlay(bool red);
+void setPomodoro(char *text);
 
 #endif // UI_H
