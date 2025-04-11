@@ -17,6 +17,7 @@
 #define UI_WHITE lv_color_hex(0xFFFFFF)
 #define UI_YELLOW lv_color_hex(0Xffb700)
 #define UI_GREEN lv_color_hex(0X00794c)
+#define UI_RED lv_color_hex(0Xed1c24)
 
 #define LV_LVGL_H_INCLUDE_SIMPLE
 
@@ -27,6 +28,7 @@ extern const lv_font_t jetbrains_mono_bold_12;
 extern const lv_font_t jetbrains_mono_bold_8;
 extern const lv_font_t jetbrains_mono_light_12;
 extern const lv_font_t jetbrains_mono_regular_10;
+extern const lv_font_t jetbrains_mono_regular_12;
 extern const lv_font_t noto_color_emoji_50;
 extern const lv_font_t noto_emoji_50;
 
@@ -49,6 +51,11 @@ static lv_obj_t *event_1_time;
 static lv_obj_t *event_1_name;
 static lv_obj_t *event_2_time;
 static lv_obj_t *event_2_name;
+
+static lv_obj_t *task_1_label;
+static lv_obj_t *task_2_label;
+static lv_obj_t *task_3_label;
+static lv_obj_t *task_4_label;
 
 static lv_obj_t *circle = NULL;
 
@@ -322,6 +329,58 @@ void createCalendarWidget() {
     lv_obj_align_to(event_2_name, rect, LV_ALIGN_TOP_LEFT, 5, 55);
 }
 
+void createTasksWidget() {
+    // create a rectangle for the tasks
+    lv_obj_t *rect = lv_obj_create(scr);
+    lv_obj_set_size(rect, 146, 94);
+    lv_obj_set_pos(rect, 88, 112);
+    lv_obj_set_style_bg_color(rect, UI_WHITE, 0);
+    lv_obj_set_style_radius(rect, 0, LV_PART_MAIN);
+    lv_obj_set_style_border_color(rect, UI_BLACK, 0);
+    lv_obj_set_style_border_width(rect, 2, 0);
+    lv_obj_set_style_border_side(rect, LV_BORDER_SIDE_FULL, 0);
+    lv_obj_set_scrollbar_mode(rect, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_set_style_pad_left(rect, 0, 0);
+    lv_obj_set_style_pad_right(rect, 0, 0);
+    lv_obj_set_style_pad_top(rect, 0, 0);
+    lv_obj_set_style_pad_bottom(rect, 0, 0);
+
+    lv_obj_t *title_label = lv_label_create(rect);
+    lv_label_set_text(title_label, "◩ TODOIST");
+    lv_obj_set_style_text_font(title_label, &jetbrains_mono_bold_10, 0);
+    lv_obj_set_style_text_color(title_label, UI_RED, 0);
+    lv_obj_set_style_text_align(title_label, LV_TEXT_ALIGN_LEFT, 0);
+    lv_obj_align_to(title_label, rect, LV_ALIGN_TOP_LEFT, 5, 3);
+
+    task_1_label = lv_label_create(rect);
+    lv_label_set_text(task_1_label, "◌ Design UI");
+    lv_obj_set_style_text_font(task_1_label, &jetbrains_mono_regular_12, 0);
+    lv_obj_set_style_text_color(task_1_label, UI_BLACK, 0);
+    lv_obj_set_style_text_align(task_1_label, LV_TEXT_ALIGN_LEFT, 0);
+    lv_obj_align_to(task_1_label, rect, LV_ALIGN_TOP_LEFT, 5, 18);
+
+    task_2_label = lv_label_create(rect);
+    lv_label_set_text(task_2_label, "◌ Implement UI");
+    lv_obj_set_style_text_font(task_2_label, &jetbrains_mono_regular_12, 0);
+    lv_obj_set_style_text_color(task_2_label, UI_BLACK, 0);
+    lv_obj_set_style_text_align(task_2_label, LV_TEXT_ALIGN_LEFT, 0);
+    lv_obj_align_to(task_2_label, rect, LV_ALIGN_TOP_LEFT, 5, 36);
+
+    task_3_label = lv_label_create(rect);
+    lv_label_set_text(task_3_label, "◌ SNTP Time");
+    lv_obj_set_style_text_font(task_3_label, &jetbrains_mono_regular_12, 0);
+    lv_obj_set_style_text_color(task_3_label, UI_BLACK, 0);
+    lv_obj_set_style_text_align(task_3_label, LV_TEXT_ALIGN_LEFT, 0);
+    lv_obj_align_to(task_3_label, rect, LV_ALIGN_TOP_LEFT, 5, 54);
+
+    task_4_label = lv_label_create(rect);
+    lv_label_set_text(task_4_label, "◌ Buy groceries");
+    lv_obj_set_style_text_font(task_4_label, &jetbrains_mono_regular_12, 0);
+    lv_obj_set_style_text_color(task_4_label, UI_BLACK, 0);
+    lv_obj_set_style_text_align(task_4_label, LV_TEXT_ALIGN_LEFT, 0);
+    lv_obj_align_to(task_4_label, rect, LV_ALIGN_TOP_LEFT, 5, 72);
+}
+
 void lvgl_demo_ui(lv_display_t *disp) {
     scr = lv_display_get_screen_active(disp);
 
@@ -347,6 +406,7 @@ void lvgl_demo_ui(lv_display_t *disp) {
     createWeatherWidget();
     createDateWidget();
     createCalendarWidget();
+    createTasksWidget();
 
     lv_anim_t a;
     lv_anim_init(&a);
