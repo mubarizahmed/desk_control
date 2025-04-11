@@ -22,9 +22,11 @@
 
 extern const lv_font_t jetbrains_mono_bold_50;
 extern const lv_font_t jetbrains_mono_light_50;
+extern const lv_font_t jetbrains_mono_bold_10;
 extern const lv_font_t jetbrains_mono_bold_12;
 extern const lv_font_t jetbrains_mono_bold_8;
 extern const lv_font_t jetbrains_mono_light_12;
+extern const lv_font_t jetbrains_mono_regular_10;
 extern const lv_font_t noto_color_emoji_50;
 extern const lv_font_t noto_emoji_50;
 
@@ -42,6 +44,11 @@ static lv_obj_t *weather_label;
 static lv_obj_t *temp_label;
 static lv_obj_t *loc_label;
 static lv_obj_t *wind_label;
+
+static lv_obj_t *event_1_time;
+static lv_obj_t *event_1_name;
+static lv_obj_t *event_2_time;
+static lv_obj_t *event_2_name;
 
 static lv_obj_t *circle = NULL;
 
@@ -245,7 +252,7 @@ void createWeatherWidget() {
 void createDateWidget() {
     // create a rectangle for the date
     lv_obj_t *rect = lv_obj_create(scr);
-    lv_obj_set_size(rect, 84, 15);
+    lv_obj_set_size(rect, 84, 16);
     // lv_obj_align(t_rect1, LV_ALIGN_CENTER, 0, 0);
     lv_obj_set_pos(rect, 6, 114);
     lv_obj_set_style_bg_color(rect, UI_BLACK, 0);
@@ -269,6 +276,50 @@ void createDateWidget() {
     lv_obj_set_style_text_align(date_label, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align_to(date_label, rect, LV_ALIGN_CENTER, 0, 0);
     // lv_obj_center(date_label);
+}
+
+void createCalendarWidget() {
+    lv_obj_t *rect = lv_obj_create(scr);
+    lv_obj_set_size(rect, 84, 78);
+    lv_obj_set_pos(rect, 6, 128);
+    lv_obj_set_style_bg_color(rect, UI_WHITE, 0);
+    lv_obj_set_style_radius(rect, 0, LV_PART_MAIN);
+    lv_obj_set_style_border_color(rect, UI_BLACK, 0);
+    lv_obj_set_style_border_width(rect, 2, 0);
+    lv_obj_set_style_border_side(rect, LV_BORDER_SIDE_FULL, 0);
+    lv_obj_set_scrollbar_mode(rect, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_set_style_pad_left(rect, 0, 0);
+    lv_obj_set_style_pad_right(rect, 0, 0);
+    lv_obj_set_style_pad_top(rect, 0, 0);
+    lv_obj_set_style_pad_bottom(rect, 0, 0);
+
+    event_1_time = lv_label_create(rect);
+    lv_label_set_text(event_1_time, "13:00 ↘");
+    lv_obj_set_style_text_font(event_1_time, &jetbrains_mono_regular_10, 0);
+    lv_obj_set_style_text_color(event_1_time, UI_BLACK, 0);
+    lv_obj_set_style_text_align(event_1_time, LV_TEXT_ALIGN_LEFT, 0);
+    lv_obj_align_to(event_1_time, rect, LV_ALIGN_TOP_LEFT, 5, 5);
+
+    event_1_name = lv_label_create(rect);
+    lv_label_set_text(event_1_name, "Jour Fixe");
+    lv_obj_set_style_text_font(event_1_name, &jetbrains_mono_bold_10, 0);
+    lv_obj_set_style_text_color(event_1_name, UI_BLACK, 0);
+    lv_obj_set_style_text_align(event_1_name, LV_TEXT_ALIGN_LEFT, 0);
+    lv_obj_align_to(event_1_name, rect, LV_ALIGN_TOP_LEFT, 5, 20);
+
+    event_2_time = lv_label_create(rect);
+    lv_label_set_text(event_2_time, "15:15 ↘");
+    lv_obj_set_style_text_font(event_2_time, &jetbrains_mono_regular_10, 0);
+    lv_obj_set_style_text_color(event_2_time, UI_BLACK, 0);
+    lv_obj_set_style_text_align(event_2_time, LV_TEXT_ALIGN_LEFT, 0);
+    lv_obj_align_to(event_2_time, rect, LV_ALIGN_TOP_LEFT, 5, 40);
+
+    event_2_name = lv_label_create(rect);
+    lv_label_set_text(event_2_name, "BLE Mesh W..");
+    lv_obj_set_style_text_font(event_2_name, &jetbrains_mono_bold_10, 0);
+    lv_obj_set_style_text_color(event_2_name, UI_BLACK, 0);
+    lv_obj_set_style_text_align(event_2_name, LV_TEXT_ALIGN_LEFT, 0);
+    lv_obj_align_to(event_2_name, rect, LV_ALIGN_TOP_LEFT, 5, 55);
 }
 
 void lvgl_demo_ui(lv_display_t *disp) {
@@ -295,6 +346,7 @@ void lvgl_demo_ui(lv_display_t *disp) {
     createTitleWidget();
     createWeatherWidget();
     createDateWidget();
+    createCalendarWidget();
 
     lv_anim_t a;
     lv_anim_init(&a);
