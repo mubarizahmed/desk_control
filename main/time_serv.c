@@ -62,11 +62,16 @@ void time_task(void *pvParameters) {
                 // } else {
                 //     ESP_LOGW(TAG, "Could not take LVGL mutex from time_task");
                 // }
+                // get date in DAY DD.MM.YYYY format
+                char date[20];
+                strftime(date, sizeof(date), "❱ %a %d.%m.%Y", &timeinfo);
 
-				_lock_acquire(&lvgl_api_lock);
-				// Handle LVGL tasks and events
-				setTime(timeinfo.tm_hour, timeinfo.tm_min);
-				_lock_release(&lvgl_api_lock);
+                ESP_LOGI(TAG, "The current date is: %s", date);
+
+                _lock_acquire(&lvgl_api_lock);
+                // Handle LVGL tasks and events
+                setTime(timeinfo.tm_hour, timeinfo.tm_min, date);
+                _lock_release(&lvgl_api_lock);
 
                 // setTime(timeinfo.tm_hour, timeinfo.tm_min);
 
@@ -97,10 +102,16 @@ void time_task(void *pvParameters) {
             //     ESP_LOGW(TAG, "Could not take LVGL mutex from time_task");
             // }
 
-			_lock_acquire(&lvgl_api_lock);
-			// Handle LVGL tasks and events
-			setTime(timeinfo.tm_hour, timeinfo.tm_min);
-			_lock_release(&lvgl_api_lock);
+            // get date in DAY DD.MM.YYYY format
+            char date[20];
+            strftime(date, sizeof(date), "❱ %a %d.%m.%Y", &timeinfo);
+
+            ESP_LOGI(TAG, "The current date is: %s", date);
+
+            _lock_acquire(&lvgl_api_lock);
+            // Handle LVGL tasks and events
+            setTime(timeinfo.tm_hour, timeinfo.tm_min, date);
+            _lock_release(&lvgl_api_lock);
 
             // log the memory usage
             size_t free_heap = esp_get_free_heap_size();

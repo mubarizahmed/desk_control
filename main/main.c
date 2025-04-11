@@ -22,10 +22,10 @@
 #include "display_manager.h"
 #include "esp_event.h"
 #include "pin_definitions.h"
+#include "time_serv.h"
 #include "ui.h"
 #include "weather_serv.h"
 #include "wifi_manager.h"
-#include "time_serv.h"
 
 static const char *TAG = "MAIN";
 
@@ -54,12 +54,13 @@ void app_main(void) {
     wifi_init_sta();
 
     // // create task to get time and keep widget updated
-    xTaskCreate(&time_task, "time_task", 1024*10, NULL, 3, NULL);
+    xTaskCreate(&time_task, "time_task", 1024 * 10, NULL, 3, NULL);
 
     // // create new task to fetch data
     xTaskCreate(&weather_task, "weather_task", 1024 * 15, NULL, 2, NULL);
-
+#ifdef DEBUG
     while (1) {
+
         // print system state every second
         TaskStatus_t *task_status_array = NULL;
         UBaseType_t task_count = uxTaskGetNumberOfTasks();
@@ -71,11 +72,11 @@ void app_main(void) {
         UBaseType_t task_count_filled = uxTaskGetSystemState(task_status_array, task_count, NULL);
         for (UBaseType_t i = 0; i < task_count_filled; i++) {
             ESP_LOGI(TAG, "Task: %s, State: %d, Priority: %d , HighWatermark: %ld", task_status_array[i].pcTaskName,
-                     task_status_array[i].eCurrentState, task_status_array[i].uxCurrentPriority,  task_status_array[i].usStackHighWaterMark);
+                     task_status_array[i].eCurrentState, task_status_array[i].uxCurrentPriority, task_status_array[i].usStackHighWaterMark);
         }
         free(task_status_array);
 
-
         vTaskDelay(pdMS_TO_TICKS(60000)); // 1 minutes delay
     }
+#endif
 }

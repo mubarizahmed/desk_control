@@ -13,3 +13,17 @@ I (189440) MAIN: Task: wifi, State: 2, Priority: 23 , HighWatermark: 3620
 I (189450) MAIN: Task: esp_timer, State: 3, Priority: 22 , HighWatermark: 3164
 I (189450) MAIN: Task: ipc1, State: 3, Priority: 24 , HighWatermark: 500
 I (189460) MAIN: Task: ipc0, State: 3, Priority: 24 , HighWatermark: 508
+
+I (68610) MAIN: Task: main, State: 0, Priority: 1 , HighWatermark: 1496
+I (68610) MAIN: Task: IDLE1, State: 1, Priority: 0 , HighWatermark: 1024
+I (68610) MAIN: Task: IDLE0, State: 1, Priority: 0 , HighWatermark: 916
+I (68620) MAIN: Task: tiT, State: 2, Priority: 18 , HighWatermark: 1924
+I (68630) MAIN: Task: time_task, State: 2, Priority: 3 , HighWatermark: 8128
+I (68630) MAIN: Task: weather_task, State: 2, Priority: 2 , HighWatermark: 12348
+I (68640) MAIN: Task: LVGL, State: 2, Priority: 2 , HighWatermark: 20384
+I (68640) MAIN: Task: ipc1, State: 3, Priority: 24 , HighWatermark: 500
+I (68650) MAIN: Task: sys_evt, State: 2, Priority: 20 , HighWatermark: 748
+I (68660) MAIN: Task: wifi, State: 2, Priority: 23 , HighWatermark: 3620
+I (68660) MAIN: Task: esp_timer, State: 3, Priority: 22 , HighWatermark: 3164
+I (68670) MAIN: Task: ipc0, State: 3, Priority: 24 , HighWatermark: 508
+I (68680) MAIN: Task: Tmr Svc, State: 2, Priority: 1 , HighWatermark: 1548

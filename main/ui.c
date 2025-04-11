@@ -23,6 +23,7 @@
 extern const lv_font_t jetbrains_mono_bold_50;
 extern const lv_font_t jetbrains_mono_light_50;
 extern const lv_font_t jetbrains_mono_bold_12;
+extern const lv_font_t jetbrains_mono_bold_8;
 extern const lv_font_t jetbrains_mono_light_12;
 extern const lv_font_t noto_color_emoji_50;
 extern const lv_font_t noto_emoji_50;
@@ -34,6 +35,7 @@ static lv_display_rotation_t rotation = LV_DISP_ROTATION_0;
 
 static lv_obj_t *time_hr_label;
 static lv_obj_t *time_min_label;
+static lv_obj_t *date_label;
 static lv_obj_t *loc_label;
 
 static lv_obj_t *weather_label;
@@ -211,7 +213,7 @@ void createWeatherWidget() {
     lv_label_set_text(temp_label, "25");
     lv_obj_set_style_text_font(temp_label, &jetbrains_mono_bold_50, 0);
     lv_obj_set_style_text_color(temp_label, UI_BLACK, 0);
-    lv_obj_set_style_text_align(temp_label, LV_TEXT_ALIGN_LEFT, 0);
+    lv_obj_set_style_text_align(temp_label, LV_TEXT_ALIGN_RIGHT, 0);
     lv_obj_align_to(temp_label, rect, LV_ALIGN_TOP_LEFT, -10, -15);
     lv_obj_set_style_text_letter_space(temp_label, -5, 0);
 
@@ -240,6 +242,35 @@ void createWeatherWidget() {
     lv_obj_align_to(weather_label, rect, LV_ALIGN_BOTTOM_RIGHT, 10, -10);
 }
 
+void createDateWidget() {
+    // create a rectangle for the date
+    lv_obj_t *rect = lv_obj_create(scr);
+    lv_obj_set_size(rect, 84, 15);
+    // lv_obj_align(t_rect1, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_set_pos(rect, 6, 114);
+    lv_obj_set_style_bg_color(rect, UI_BLACK, 0);
+    lv_obj_set_style_radius(rect, 0, LV_PART_MAIN);
+    // lv_obj_set_style_border_color(rect, UI_BLACK, 0);
+    lv_obj_set_style_border_width(rect, 0, 0);
+    // lv_obj_set_style_border_side(rect, LV_BORDER_SIDE_FULL, 0);
+    lv_obj_set_scrollbar_mode(rect, LV_SCROLLBAR_MODE_OFF);
+
+    // remove all padding
+    lv_obj_set_style_pad_left(rect, 0, 0);
+    lv_obj_set_style_pad_right(rect, 0, 0);
+    lv_obj_set_style_pad_top(rect, 0, 0);
+    lv_obj_set_style_pad_bottom(rect, 0, 0);
+
+    // Date label
+    date_label = lv_label_create(rect);
+    lv_label_set_text(date_label, "❱ WED 10.04.2025");
+    lv_obj_set_style_text_font(date_label, &jetbrains_mono_bold_8, 0);
+    lv_obj_set_style_text_color(date_label, UI_WHITE, 0);
+    lv_obj_set_style_text_align(date_label, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_align_to(date_label, rect, LV_ALIGN_CENTER, 0, 0);
+    // lv_obj_center(date_label);
+}
+
 void lvgl_demo_ui(lv_display_t *disp) {
     scr = lv_display_get_screen_active(disp);
 
@@ -263,6 +294,7 @@ void lvgl_demo_ui(lv_display_t *disp) {
     createTimeWidget();
     createTitleWidget();
     createWeatherWidget();
+    createDateWidget();
 
     lv_anim_t a;
     lv_anim_init(&a);
@@ -366,7 +398,7 @@ void setWeatherData(char *data) {
     // ESP_LOGI(TAG, "Weather data: %s", data);
 }
 
-void setTime(int hr, int min) {
+void setTime(int hr, int min, char *date) {
     // check if the time labels are created
     if (time_hr_label == NULL || time_min_label == NULL) {
         ESP_LOGE(TAG, "Time labels not created yet.");
@@ -386,7 +418,16 @@ void setTime(int hr, int min) {
     min_str[1] = '0' + (min % 10); // Units place
     min_str[2] = '\0';             // Null terminator
 
+    // capitalize the date string
+    int len = strlen(date);
+    for (int i = 0; i < len; i++) {
+        if (date[i] >= 'a' && date[i] <= 'z') {
+            date[i] = date[i] - 32;
+        }
+    }
+
     // set the text of the label to the time data
     lv_label_set_text(time_hr_label, hr_str);
     lv_label_set_text(time_min_label, min_str);
+    lv_label_set_text(date_label, date);
 }
