@@ -27,8 +27,10 @@ extern const lv_font_t jetbrains_mono_bold_10;
 extern const lv_font_t jetbrains_mono_bold_12;
 extern const lv_font_t jetbrains_mono_bold_8;
 extern const lv_font_t jetbrains_mono_light_12;
+extern const lv_font_t jetbrains_mono_light_14;
 extern const lv_font_t jetbrains_mono_regular_10;
 extern const lv_font_t jetbrains_mono_regular_12;
+extern const lv_font_t jetbrains_mono_regular_14;
 extern const lv_font_t noto_color_emoji_50;
 extern const lv_font_t noto_emoji_50;
 
@@ -381,6 +383,132 @@ void createTasksWidget() {
     lv_obj_align_to(task_4_label, rect, LV_ALIGN_TOP_LEFT, 5, 72);
 }
 
+void createPomodoroWidget() {
+    // create a rectangle for the tasks
+    lv_obj_t *rect = lv_obj_create(scr);
+    lv_obj_set_size(rect, 228, 50);
+    lv_obj_set_pos(rect, 6, 206);
+    lv_obj_set_style_bg_color(rect, UI_BLACK, 0);
+    lv_obj_set_style_radius(rect, 0, LV_PART_MAIN);
+    lv_obj_set_style_border_color(rect, UI_BLACK, 0);
+    lv_obj_set_style_border_width(rect, 0, 0);
+    lv_obj_set_style_border_side(rect, LV_BORDER_SIDE_FULL, 0);
+    lv_obj_set_scrollbar_mode(rect, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_set_style_pad_left(rect, 0, 0);
+    lv_obj_set_style_pad_right(rect, 0, 0);
+    lv_obj_set_style_pad_top(rect, 0, 0);
+    lv_obj_set_style_pad_bottom(rect, 0, 0);
+
+    lv_obj_t *title_label_1 = lv_label_create(rect);
+    lv_label_set_text(title_label_1, "POM");
+    lv_obj_set_style_text_font(title_label_1, &jetbrains_mono_regular_14, 0);
+    lv_obj_set_style_text_color(title_label_1, UI_RED, 0);
+    lv_obj_set_style_text_align(title_label_1, LV_TEXT_ALIGN_LEFT, 0);
+    lv_obj_align_to(title_label_1, rect, LV_ALIGN_TOP_LEFT, 5, 2);
+
+    lv_obj_t *title_label_2 = lv_label_create(rect);
+    lv_label_set_text(title_label_2, "ODO");
+    lv_obj_set_style_text_font(title_label_2, &jetbrains_mono_regular_14, 0);
+    lv_obj_set_style_text_color(title_label_2, UI_RED, 0);
+    lv_obj_set_style_text_align(title_label_2, LV_TEXT_ALIGN_LEFT, 0);
+    lv_obj_align_to(title_label_2, rect, LV_ALIGN_TOP_LEFT, 5, 17);
+
+    lv_obj_t *title_label_3 = lv_label_create(rect);
+    lv_label_set_text(title_label_3, "RO◎");
+    lv_obj_set_style_text_font(title_label_3, &jetbrains_mono_regular_14, 0);
+    lv_obj_set_style_text_color(title_label_3, UI_RED, 0);
+    lv_obj_set_style_text_align(title_label_3, LV_TEXT_ALIGN_LEFT, 0);
+    lv_obj_align_to(title_label_3, rect, LV_ALIGN_TOP_LEFT, 5, 32);
+
+    lv_obj_t *p1_rect = lv_obj_create(rect);
+    lv_obj_set_size(p1_rect, 34, 34);
+    lv_obj_set_style_bg_color(p1_rect, UI_WHITE, 0);
+    lv_obj_set_style_radius(p1_rect, 0, LV_PART_MAIN);
+    lv_obj_set_style_border_color(p1_rect, UI_BLACK, 0);
+    lv_obj_set_style_border_width(p1_rect, 0, 0);
+    lv_obj_set_style_border_side(p1_rect, LV_BORDER_SIDE_FULL, 0);
+    lv_obj_set_scrollbar_mode(p1_rect, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_set_style_pad_left(p1_rect, 0, 0);
+    lv_obj_set_style_pad_right(p1_rect, 0, 0);
+    lv_obj_set_style_pad_top(p1_rect, 0, 0);
+    lv_obj_set_style_pad_bottom(p1_rect, 0, 0);
+    lv_obj_align_to(p1_rect, rect, LV_ALIGN_TOP_LEFT, 48, 8);
+
+    lv_obj_t *p1_label = lv_label_create(p1_rect);
+    lv_label_set_text(p1_label, "30\nmin");
+    lv_obj_set_style_text_font(p1_label, &jetbrains_mono_light_14, 0);
+    lv_obj_set_style_text_color(p1_label, UI_BLACK, 0);
+    lv_obj_set_style_text_line_space(p1_label, -3, 0);
+    lv_obj_set_style_text_align(p1_label, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_center(p1_label);
+
+    lv_obj_t *p2_rect = lv_obj_create(rect);
+    lv_obj_set_size(p2_rect, 34, 34);
+    lv_obj_set_style_bg_color(p2_rect, UI_WHITE, 0);
+    lv_obj_set_style_radius(p2_rect, 0, LV_PART_MAIN);
+    lv_obj_set_style_border_color(p2_rect, UI_BLACK, 0);
+    lv_obj_set_style_border_width(p2_rect, 0, 0);
+    lv_obj_set_style_border_side(p2_rect, LV_BORDER_SIDE_FULL, 0);
+    lv_obj_set_scrollbar_mode(p2_rect, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_set_style_pad_left(p2_rect, 0, 0);
+    lv_obj_set_style_pad_right(p2_rect, 0, 0);
+    lv_obj_set_style_pad_top(p2_rect, 0, 0);
+    lv_obj_set_style_pad_bottom(p2_rect, 0, 0);
+    lv_obj_align_to(p2_rect, rect, LV_ALIGN_TOP_LEFT, 94, 8);
+
+    lv_obj_t *p2_label = lv_label_create(p2_rect);
+    lv_label_set_text(p2_label, "45\nmin");
+    lv_obj_set_style_text_font(p2_label, &jetbrains_mono_light_14, 0);
+    lv_obj_set_style_text_color(p2_label, UI_BLACK, 0);
+    lv_obj_set_style_text_line_space(p2_label, -3, 0);
+    lv_obj_set_style_text_align(p2_label, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_center(p2_label);
+
+    lv_obj_t *p3_rect = lv_obj_create(rect);
+    lv_obj_set_size(p3_rect, 34, 34);
+    lv_obj_set_style_bg_color(p3_rect, UI_WHITE, 0);
+    lv_obj_set_style_radius(p3_rect, 0, LV_PART_MAIN);
+    lv_obj_set_style_border_color(p3_rect, UI_BLACK, 0);
+    lv_obj_set_style_border_width(p3_rect, 0, 0);
+    lv_obj_set_style_border_side(p3_rect, LV_BORDER_SIDE_FULL, 0);
+    lv_obj_set_scrollbar_mode(p3_rect, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_set_style_pad_left(p3_rect, 0, 0);
+    lv_obj_set_style_pad_right(p3_rect, 0, 0);
+    lv_obj_set_style_pad_top(p3_rect, 0, 0);
+    lv_obj_set_style_pad_bottom(p3_rect, 0, 0);
+    lv_obj_align_to(p3_rect, rect, LV_ALIGN_TOP_LEFT, 140, 8);
+
+    lv_obj_t *p3_label = lv_label_create(p3_rect);
+    lv_label_set_text(p3_label, "1\nHR");
+    lv_obj_set_style_text_font(p3_label, &jetbrains_mono_light_14, 0);
+    lv_obj_set_style_text_line_space(p3_label, -3, 0);
+    lv_obj_set_style_text_color(p3_label, UI_BLACK, 0);
+    lv_obj_set_style_text_align(p3_label, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_center(p3_label);
+
+    lv_obj_t *p4_rect = lv_obj_create(rect);
+    lv_obj_set_size(p4_rect, 34, 34);
+    lv_obj_set_style_bg_color(p4_rect, UI_WHITE, 0);
+    lv_obj_set_style_radius(p4_rect, 0, LV_PART_MAIN);
+    lv_obj_set_style_border_color(p4_rect, UI_BLACK, 0);
+    lv_obj_set_style_border_width(p4_rect, 0, 0);
+    lv_obj_set_style_border_side(p4_rect, LV_BORDER_SIDE_FULL, 0);
+    lv_obj_set_scrollbar_mode(p4_rect, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_set_style_pad_left(p4_rect, 0, 0);
+    lv_obj_set_style_pad_right(p4_rect, 0, 0);
+    lv_obj_set_style_pad_top(p4_rect, 0, 0);
+    lv_obj_set_style_pad_bottom(p4_rect, 0, 0);
+    lv_obj_align_to(p4_rect, rect, LV_ALIGN_TOP_LEFT, 186, 8);
+
+    lv_obj_t *p4_label = lv_label_create(p4_rect);
+    lv_label_set_text(p4_label, "1.5\nHR");
+    lv_obj_set_style_text_font(p4_label, &jetbrains_mono_light_14, 0);
+    lv_obj_set_style_text_line_space(p4_label, -3, 0);
+    lv_obj_set_style_text_color(p4_label, UI_BLACK, 0);
+    lv_obj_set_style_text_align(p4_label, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_center(p4_label);
+}
+
 void lvgl_demo_ui(lv_display_t *disp) {
     scr = lv_display_get_screen_active(disp);
 
@@ -407,6 +535,7 @@ void lvgl_demo_ui(lv_display_t *disp) {
     createDateWidget();
     createCalendarWidget();
     createTasksWidget();
+    createPomodoroWidget();
 
     lv_anim_t a;
     lv_anim_init(&a);
