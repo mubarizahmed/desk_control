@@ -19,6 +19,7 @@
 #include <sys/param.h>
 #include <unistd.h>
 
+#include "calendar_serv.h"
 #include "display_manager.h"
 #include "esp_event.h"
 #include "pin_definitions.h"
@@ -62,6 +63,9 @@ void app_main(void) {
 
     // // create new task for pomodoro
     xTaskCreate(&pomodoro_task, "pomodoro_task", 1024 * 1, NULL, 4, NULL);
+
+    // // create new task for calendar
+    xTaskCreate(&calendar_task, "calendar_task", 1024 * 10, NULL, 2, NULL);
 #ifdef DEBUG
     while (1) {
 

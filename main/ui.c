@@ -774,3 +774,38 @@ void flashPomodoroOverlay(bool red) {
 void setPomodoro(char *text) {
     lv_label_set_text(pomodoro_overlay_label, text);
 }
+
+void setCalendarData(char *data) {
+    // split on ;
+    char *token = strtok(data, ";");
+    char *e1_time = NULL;
+    char *e1_name = NULL;
+    char *e2_time = NULL;
+    char *e2_name = NULL;
+
+    int i = 0;
+    while (token != NULL) {
+        switch (i) {
+        case 0:
+            e1_time = token;
+            break;
+        case 1:
+            e1_name = token;
+            break;
+        case 2:
+            e2_time = token;
+            break;
+        case 3:
+            e2_name = token;
+            break;
+        default:
+            break;
+        }
+        i++;
+        token = strtok(NULL, ";");
+    }
+    lv_label_set_text(event_1_time, e1_time);
+    lv_label_set_text(event_1_name, e1_name);
+    lv_label_set_text(event_2_time, e2_time);
+    lv_label_set_text(event_2_name, e2_name);
+}

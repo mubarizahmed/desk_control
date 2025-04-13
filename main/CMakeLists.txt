@@ -7,6 +7,7 @@ idf_component_register(
   "time_serv.c" "time_serv.h"
   "ui.c" "ui.h"
   "pomodoro.c" "pomodoro.h"
+  "calendar_serv.c" "calendar_serv.h"
   "fonts/jetbrains_mono_bold_8.c"
   "fonts/jetbrains_mono_bold_10.c"
   "fonts/jetbrains_mono_bold_12.c"
