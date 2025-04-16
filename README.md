@@ -37,7 +37,7 @@ ESP IDF is used to program the ESP32. The project can be configured using `idf.p
 The mock UI is a simple representation of what the final UI will look like. It is not a final design and will be updated as I go along. The current design is a simple grid layout with a monotype font which makes absolute positioning of the elements easy.
 
 <div align="center">
-  <img src="docs/mockup.png" alt="Mock UI" width="200"/>
+  <img src="docs/Mockup.png" alt="Mock UI" width="200"/>
 </div>
 
 ## Progress
