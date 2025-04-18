@@ -8,6 +8,8 @@ idf_component_register(
   "ui.c" "ui.h"
   "pomodoro.c" "pomodoro.h"
   "calendar_serv.c" "calendar_serv.h"
+  "spotify_serv.c" "spotify_serv.h"
+  # "SpotifyEsp32.cpp" "SpotifyEsp32.h"
   "fonts/jetbrains_mono_bold_8.c"
   "fonts/jetbrains_mono_bold_10.c"
   "fonts/jetbrains_mono_bold_12.c"
@@ -27,6 +29,11 @@ idf_component_register(
   "fonts/jetbrains_mono_light_50.c"
   "fonts/noto_color_emoji_50.c"
   "fonts/noto_emoji_50.c"
-  PRIV_REQUIRES esp_wifi nvs_flash esp_http_client mbedtls esp-tls esp_netif lwip
+  PRIV_REQUIRES esp_wifi nvs_flash esp_http_client mbedtls esp-tls esp_netif lwip json esp_https_server
   INCLUDE_DIRS "." "fonts"
 )
+
+set(embed_txt_files "server_cert.pem" "server_key.pem")
+foreach(file IN LISTS embed_txt_files)
+  target_add_binary_data(${COMPONENT_LIB} "certs/${file}" TEXT)
+endforeach()

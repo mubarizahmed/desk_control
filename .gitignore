@@ -6,3 +6,5 @@ managed_components
 
 *.lock
 sdkconfig*
+main/SpotifyEsp32.h
+main/SpotifyEsp32.cpp

@@ -25,6 +25,7 @@ static EventGroupHandle_t s_wifi_event_group; // FreeRTOS event group to signal 
 static int s_retry_num = 0; // Variable to track the number of connection retries
 
 int8_t wifi_connected = 0; // Global variable to track WiFi connection status
+esp_ip4_addr_t ip_addr;    // Variable to store the IP address
 
 /**
  * @brief WiFi event handler function. Handles WiFi events such as connection, disconnection, and IP assignment.
@@ -53,6 +54,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
     } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
         ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
         ESP_LOGI(TAG, "got ip:" IPSTR, IP2STR(&event->ip_info.ip));
+        ip_addr = event->ip_info.ip;
         s_retry_num = 0;
         xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
 

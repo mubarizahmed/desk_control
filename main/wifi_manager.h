@@ -10,6 +10,8 @@
 #ifndef WIFI_MANAGER_H
 #define WIFI_MANAGER_H
 
+#include "esp_wifi.h"
+
 /*
  * PUBLIC MACROS
  */
@@ -60,6 +62,7 @@
  */
 
 extern int8_t wifi_connected;
+extern esp_ip4_addr_t ip_addr;
 
 /*
  * PUBLIC FUNCTIONS
