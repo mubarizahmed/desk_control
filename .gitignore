@@ -5,6 +5,7 @@ build
 managed_components
 
 *.lock
-sdkconfig*
+sdkconfig.*
 main/SpotifyEsp32.h
 main/SpotifyEsp32.cpp
+main/wifi_conf.h

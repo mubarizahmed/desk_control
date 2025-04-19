@@ -21,9 +21,6 @@
 #include "spotify_serv.h"
 #include "wifi_manager.h"
 
-#define CLIENT_ID "5f83ca14cd424647bc9e8f6085964617"
-#define CLIENT_SECRET "8d5aee2526f74e1285b7a332a1ec0b44"
-
 static const char *TAG = "SPOTIFY_SERV";
 
 // char g_refresh_token[300] = "";
@@ -35,8 +32,8 @@ static const char *TAG = "SPOTIFY_SERV";
 static char response_buffer[MAX_HTTP_OUTPUT_BUFFER];
 
 SpotifyContext g_spotify_ctx = {
-    .client_id = CLIENT_ID,
-    .client_secret = CLIENT_SECRET,
+    .client_id = "",
+    .client_secret = "",
     .refresh_token = "",
     .access_token = "",
     .auth_code = "",
@@ -151,195 +148,10 @@ void get_access_token(SpotifyContext *ctx) {
     }
 }
 
-void spotify_init(SpotifyContext *ctx, const char *client_id, const char *client_secret, int port, bool debug_on, int max_retry) {
-    memset(ctx, 0, sizeof(SpotifyContext));
-    ctx->debug_on = debug_on;
-    ctx->port = port;
-    ctx->retry = 0;
-    ctx->max_retry = max_retry > 0 ? max_retry : 1;
-
-    if (!client_id || !client_secret) {
-        ctx->no_credentials = true;
-    } else {
-        strncpy(ctx->client_id, client_id, sizeof(ctx->client_id));
-        strncpy(ctx->client_secret, client_secret, sizeof(ctx->client_secret));
-    }
-}
-
-// bool get_refresh_token(const char *auth_code, const char *redirect_uri) {
-//     char post_data[512];
-//     char auth_header[128];
-//     char response_buf[MAX_HTTP_RECV_BUFFER] = {0};
-//     esp_err_t err;
-
-//     // Construct POST data
-//     snprintf(post_data, sizeof(post_data),
-//              "grant_type=authorization_code&code=%s&redirect_uri=%s&client_id=%s&client_secret=%s",
-//              auth_code, redirect_uri, g_spotify_ctx.client_id, g_spotify_ctx.client_secret);
-
-//     ESP_LOGI("SPOTIFY", "Refresh token POST data: %s", post_data);
-
-//     // Setup HTTP client
-//     esp_http_client_config_t config = {
-//         .url = "https://accounts.spotify.com/api/token",
-//         .method = HTTP_METHOD_POST,
-//         .timeout_ms = 5000,
-//         .cert_pem = _spotify_root_ca,
-//     };
-
-//     esp_http_client_handle_t client = esp_http_client_init(&config);
-
-//     esp_http_client_set_header(client, "Content-Type", "application/x-www-form-urlencoded");
-//     esp_http_client_set_post_field(client, post_data, strlen(post_data));
-
-//     err = esp_http_client_perform(client);
-//     if (err != ESP_OK) {
-//         ESP_LOGE("SPOTIFY", "HTTP request failed: %s", esp_err_to_name(err));
-//         esp_http_client_cleanup(client);
-//         return false;
-//     }
-
-//     int content_length = esp_http_client_fetch_headers(client);
-
-//     // Check for chunked response
-//     if (content_length == -1) {
-//         ESP_LOGE("SPOTIFY", "Chunked response not supported");
-//         esp_http_client_cleanup(client);
-//         return false;
-//     }
-
-//     if (content_length <= 0) {
-//         ESP_LOGE("SPOTIFY", "Invalid response");
-//         esp_http_client_cleanup(client);
-//         return false;
-//     }
-
-//     int data_read = esp_http_client_read_response(client, response_buf, sizeof(response_buf) - 1);
-//     if (data_read <= 0) {
-//         ESP_LOGE("SPOTIFY", "Failed to read response");
-//         esp_http_client_cleanup(client);
-//         return false;
-//     }
-
-//     // Parse JSON response
-//     cJSON *root = cJSON_Parse(response_buf);
-//     if (!root) {
-//         ESP_LOGE("SPOTIFY", "Failed to parse JSON");
-//         esp_http_client_cleanup(client);
-//         return false;
-//     }
-
-//     cJSON *refresh_token = cJSON_GetObjectItem(root, "refresh_token");
-//     if (refresh_token && cJSON_IsString(refresh_token)) {
-//         strncpy(g_spotify_ctx.refresh_token, refresh_token->valuestring, 300);
-//         g_spotify_ctx.refresh_token[300 - 1] = '\0';
-
-//         if (g_spotify_ctx.debug_on) {
-//             ESP_LOGI("SPOTIFY", "Refresh Token: %s", g_spotify_ctx.refresh_token);
-//         }
-
-//         cJSON_Delete(root);
-//         esp_http_client_cleanup(client);
-//         return true;
-//     } else {
-//         ESP_LOGW("SPOTIFY", "No refresh token in response");
-//     }
-
-//     cJSON_Delete(root);
-//     esp_http_client_cleanup(client);
-//     return false;
-// }
-
-// bool get_refresh_token(const char *auth_code, const char *redirect_uri) {
-//     char post_data[512];
-//     char response_buf[MAX_HTTP_RECV_BUFFER] = {0};
-//     // char total_response[2048] = {0}; // Big enough for full response
-//     esp_err_t err;
-
-//     // Construct POST data
-//     snprintf(post_data, sizeof(post_data),
-//              "grant_type=authorization_code&code=%s&redirect_uri=%s&client_id=%s&client_secret=%s",
-//              auth_code, redirect_uri, g_spotify_ctx.client_id, g_spotify_ctx.client_secret);
-
-//     ESP_LOGI("SPOTIFY", "Refresh token POST data: %s", post_data);
-
-//     // Setup HTTP client
-//     esp_http_client_config_t config = {
-//         .url = "https://accounts.spotify.com/api/token",
-//         .method = HTTP_METHOD_POST,
-//         .timeout_ms = 5000,
-//         .cert_pem = _spotify_root_ca,
-//     };
-
-//     esp_http_client_handle_t client = esp_http_client_init(&config);
-
-//     esp_http_client_set_header(client, "Content-Type", "application/x-www-form-urlencoded");
-//     esp_http_client_set_post_field(client, post_data, strlen(post_data));
-
-//     err = esp_http_client_perform(client);
-//     if (err != ESP_OK) {
-//         ESP_LOGE("SPOTIFY", "HTTP request failed: %s", esp_err_to_name(err));
-//         esp_http_client_cleanup(client);
-//         return false;
-//     }
-
-//     // Read response in chunks
-//     // int total_read = 0;
-//     int content_len = esp_http_client_get_content_length(client);
-//     ESP_LOGI("SPOTIFY", "Content Length: %d", content_len); // Might be -1 for chunked
-
-//     char total_response[MAX_HTTP_RECV_BUFFER];
-//     int total_read = 0;
-
-//     while (1) {
-//         int read = esp_http_client_read(client, response_buf, sizeof(response_buf));
-//         if (read <= 0)
-//             break;
-
-//         if ((total_read + read) >= MAX_HTTP_RECV_BUFFER) {
-//             ESP_LOGE("SPOTIFY", "Response too large for buffer");
-//             break;
-//         }
-
-//         memcpy(total_response + total_read, response_buf, read);
-//         total_read += read;
-//     }
-
-//     total_response[total_read] = '\0'; // Null-terminate after last chunk
-
-//     ESP_LOGI("SPOTIFY", "Response: >>>%s<<<", total_response);
-
-//     // Parse JSON response
-//     cJSON *root = cJSON_Parse(total_response);
-//     if (!root) {
-//         ESP_LOGE("SPOTIFY", "Failed to parse JSON");
-//         esp_http_client_cleanup(client);
-//         return false;
-//     }
-
-//     cJSON *refresh_token = cJSON_GetObjectItem(root, "refresh_token");
-//     if (refresh_token && cJSON_IsString(refresh_token)) {
-//         strncpy(g_spotify_ctx.refresh_token, refresh_token->valuestring, 300);
-//         g_spotify_ctx.refresh_token[299] = '\0';
-
-//         if (g_spotify_ctx.debug_on) {
-//             ESP_LOGI("SPOTIFY", "Refresh Token: %s", g_spotify_ctx.refresh_token);
-//         }
-
-//         cJSON_Delete(root);
-//         esp_http_client_cleanup(client);
-//         return true;
-//     } else {
-//         ESP_LOGW("SPOTIFY", "No refresh token in response");
-//     }
-
-//     cJSON_Delete(root);
-//     esp_http_client_cleanup(client);
-//     return false;
-// }
 esp_err_t _http_event_handler(esp_http_client_event_t *evt) {
     static char *output_buffer; // Buffer to store response of http request from event handler
     static int output_len;      // Stores number of bytes read
+
     switch (evt->event_id) {
     case HTTP_EVENT_ERROR:
         ESP_LOGD(TAG, "HTTP_EVENT_ERROR");
@@ -436,7 +248,7 @@ bool get_refresh_token(const char *auth_code, const char *redirect_uri) {
              "grant_type=authorization_code&code=%s&redirect_uri=%s&client_id=%s&client_secret=%s",
              auth_code, redirect_uri, g_spotify_ctx.client_id, g_spotify_ctx.client_secret);
 
-    ESP_LOGI("SPOTIFY", "Refresh token POST data: %s", post_data);
+    ESP_LOGI(TAG, "Refresh token POST data: %s", post_data);
 
     // Clear the buffer before request
     memset(response_buffer, 0, MAX_HTTP_OUTPUT_BUFFER);
@@ -462,7 +274,7 @@ bool get_refresh_token(const char *auth_code, const char *redirect_uri) {
         return false;
     }
 
-    ESP_LOGI("SPOTIFY", "Response: >>>%s<<<", response_buffer);
+    ESP_LOGI(TAG, "Response: >>>%s<<<", response_buffer);
 
     // Parse JSON response
     cJSON *root = cJSON_Parse(response_buffer);
@@ -478,11 +290,19 @@ bool get_refresh_token(const char *auth_code, const char *redirect_uri) {
         g_spotify_ctx.refresh_token[sizeof(g_spotify_ctx.refresh_token) - 1] = '\0';
 
         if (g_spotify_ctx.debug_on) {
-            ESP_LOGI("SPOTIFY", "Refresh Token: %s", g_spotify_ctx.refresh_token);
+            ESP_LOGI(TAG, "Refresh Token: %s", g_spotify_ctx.refresh_token);
         }
 
         cJSON_Delete(root);
         esp_http_client_cleanup(client);
+
+#ifdef DEBUG
+        // print heap information
+        size_t free_heap = esp_get_free_heap_size();
+        size_t min_free_heap = esp_get_minimum_free_heap_size();
+        ESP_LOGI(TAG, "get_refresh_token heap: %zu bytes, Minimum free heap: %zu bytes", free_heap, min_free_heap);
+#endif
+
         return true;
     } else {
         ESP_LOGW("SPOTIFY", "No refresh token in response");
@@ -498,9 +318,10 @@ esp_err_t root_get_handler(httpd_req_t *req) {
     size_t buf_len;
 
     buf_len = httpd_req_get_hdr_value_len(req, "User-Agent") + 1;
+    ESP_LOGI(TAG, "User-Agent length: %d", buf_len);
     if (buf_len > 1) {
         httpd_req_get_hdr_value_str(req, "User-Agent", buf, sizeof(buf));
-        ESP_LOGI("HTTPS", "User-Agent: %s", buf);
+        ESP_LOGI(TAG, "User-Agent: %s", buf);
     }
 
     // Access context via `req->user_ctx`
@@ -508,6 +329,13 @@ esp_err_t root_get_handler(httpd_req_t *req) {
 
     httpd_resp_set_type(req, "text/html");
     httpd_resp_send(req, credentials_input, HTTPD_RESP_USE_STRLEN);
+
+#ifdef DEBUG
+    // print heap information
+    size_t free_heap = esp_get_free_heap_size();
+    size_t min_free_heap = esp_get_minimum_free_heap_size();
+    ESP_LOGI(TAG, "root_get_handler heap: %zu bytes, Minimum free heap: %zu bytes", free_heap, min_free_heap);
+#endif
     return ESP_OK;
 }
 
@@ -538,7 +366,7 @@ esp_err_t callback_handler(httpd_req_t *req) {
         if (httpd_query_key_value(query, "code", code, sizeof(code)) == ESP_OK) {
             strncpy(ctx->auth_code, code, sizeof(ctx->auth_code));
             if (ctx->debug_on) {
-                ESP_LOGI("SPOTIFY", "Auth Code: %s", ctx->auth_code);
+                ESP_LOGI(TAG, "Auth Code: %s", ctx->auth_code);
             }
 
             // Get new refresh token from Spotify
@@ -576,6 +404,13 @@ esp_err_t callback_handler(httpd_req_t *req) {
         // httpd_stop(ctx->server_handle);
         return ESP_OK;
     }
+
+#ifdef DEBUG
+    // print heap information
+    size_t free_heap = esp_get_free_heap_size();
+    size_t min_free_heap = esp_get_minimum_free_heap_size();
+    ESP_LOGI(TAG, "callback_handler heap: %zu bytes, Minimum free heap: %zu bytes", free_heap, min_free_heap);
+#endif
 }
 
 esp_err_t get_handler(httpd_req_t *req) {
@@ -626,48 +461,6 @@ esp_err_t get_handler(httpd_req_t *req) {
 
     return ESP_OK;
 }
-// esp_err_t credentials_get_handler(httpd_req_t *req) {
-//     httpd_resp_set_type(req, "text/html");
-//     httpd_resp_send(req, credentials_input, HTTPD_RESP_USE_STRLEN);
-//     return ESP_OK;
-// }
-
-// void start_webserver(SpotifyContext *ctx) {
-//     .crt_bundle_attach = esp_crt_bundle_attach,
-
-//     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-//     config.server_port = ctx->port;
-
-//     httpd_uri_t root = {
-//         .uri = "/",
-//         .method = HTTP_GET,
-
-//         .handler = root_get_handler,
-//         .user_ctx = ctx};
-
-//     if (httpd_start(&ctx->server, &config) == ESP_OK) {
-//         httpd_register_uri_handler(ctx->server, &root);
-//         httpd_uri_t callback = {
-//             .uri = "/callback",
-//             .method = HTTP_GET,
-//             .handler = callback_handler,
-//             .user_ctx = ctx};
-//         httpd_register_uri_handler(ctx->server, &callback);
-//         httpd_uri_t get = {
-//             .uri = "/get",
-//             .method = HTTP_GET,
-//             .handler = get_handler,
-//             .user_ctx = ctx};
-//         httpd_register_uri_handler(ctx->server, &get);
-//         if (ctx->debug_on) {
-//             ESP_LOGI("SPOTIFY", "Server started");
-//         }
-//     } else {
-//         if (ctx->debug_on) {
-//             ESP_LOGE("SPOTIFY", "Failed to start server");
-//         }
-//     }
-// }
 
 void start_webserver(SpotifyContext *ctx) {
     httpd_ssl_config_t conf = HTTPD_SSL_CONFIG_DEFAULT();
@@ -709,11 +502,11 @@ void start_webserver(SpotifyContext *ctx) {
         httpd_register_uri_handler(ctx->server, &get);
 
         if (ctx->debug_on) {
-            ESP_LOGI("SPOTIFY", "HTTPS server started");
+            ESP_LOGI(TAG, "HTTPS server started");
         }
     } else {
         if (ctx->debug_on) {
-            ESP_LOGE("SPOTIFY", "Failed to start HTTPS server: %s", esp_err_to_name(ret));
+            ESP_LOGE(TAG, "Failed to start HTTPS server: %s", esp_err_to_name(ret));
         }
     }
 }
