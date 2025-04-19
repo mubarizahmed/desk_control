@@ -41,6 +41,13 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
         esp_wifi_connect();
     } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
+        ESP_LOGI(TAG, "connect to the AP fail");
+        // log the error message
+        ESP_LOGI(TAG, "Reason: %d", ((wifi_event_sta_disconnected_t *)event_data)->reason);
+        // if (((wifi_event_sta_disconnected_t *)event_data)->reason == WIFI_REASON_AUTH_EXPIRE) {
+        //     esp_wifi_stop();
+        //     wifi_init_sta();
+        // }
         if (s_retry_num < ESP_MAXIMUM_RETRY) {
             esp_wifi_connect();
             s_retry_num++;
@@ -48,7 +55,6 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
         } else {
             xEventGroupSetBits(s_wifi_event_group, WIFI_FAIL_BIT);
         }
-        ESP_LOGI(TAG, "connect to the AP fail");
 
         wifi_connected = 0;
     } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
@@ -68,6 +74,13 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
  */
 void wifi_init_sta(void) {
     s_wifi_event_group = xEventGroupCreate();
+
+    wifi_country_t wifi_country = {
+        .cc = "DE",  // Country code for Germany
+        .schan = 1,  // Start channel
+        .nchan = 13, // Number of channels (Germany allows 1–13)
+        .policy = WIFI_COUNTRY_POLICY_AUTO};
+    esp_wifi_set_country(&wifi_country);
 
     ESP_ERROR_CHECK(esp_netif_init());
 
@@ -99,11 +112,17 @@ void wifi_init_sta(void) {
              * to WIFI_AUTH_WEP/WIFI_AUTH_WPA_PSK and set the password with length and format matching to
              * WIFI_AUTH_WEP/WIFI_AUTH_WPA_PSK standards.
              */
-            .threshold.authmode = ESP_WIFI_SCAN_AUTH_MODE_THRESHOLD,
-            .sae_pwe_h2e = ESP_WIFI_SAE_MODE,
-            .sae_h2e_identifier = H2E_IDENTIFIER,
+            .threshold.authmode = WIFI_AUTH_WPA2_PSK,
+            .pmf_cfg = {
+                .capable = true,
+                .required = false,
+            },
+            // .threshold.authmode = ESP_WIFI_SCAN_AUTH_MODE_THRESHOLD,
+            // .sae_pwe_h2e = ESP_WIFI_SAE_MODE,
+            // .sae_h2e_identifier = H2E_IDENTIFIER,
         },
     };
+
     ESP_LOGI(TAG, "Setting WiFi configuration SSID %s...", ESP_WIFI_SSID);
     ESP_LOGI(TAG, "Setting WiFi configuration password %s...", ESP_WIFI_PASS);
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
