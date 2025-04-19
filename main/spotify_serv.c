@@ -18,17 +18,21 @@
 #include "string.h"
 #include <sys/param.h>
 
+#include "display_manager.h"
 #include "spotify_serv.h"
+#include "ui.h"
 #include "wifi_manager.h"
 
 static const char *TAG = "SPOTIFY_SERV";
+
+#define DEBUG 1
 
 // char g_refresh_token[300] = "";
 // char g_client_id[100] = CLIENT_ID;
 // char g_client_secret[100] = CLIENT_SECRET;
 // uint16_t g_port = 80;
 
-#define MAX_HTTP_OUTPUT_BUFFER 2048
+#define MAX_HTTP_OUTPUT_BUFFER 4024
 static char response_buffer[MAX_HTTP_OUTPUT_BUFFER];
 
 SpotifyContext g_spotify_ctx = {
@@ -43,6 +47,8 @@ SpotifyContext g_spotify_ctx = {
     .max_retry = 3,
     .no_credentials = false,
 };
+
+const char *spotify_scopes = "user-read-currently-playing user-modify-playback-state";
 
 extern const uint8_t server_cert_pem_start[] asm("_binary_server_cert_pem_start");
 extern const uint8_t server_cert_pem_end[] asm("_binary_server_cert_pem_end");
@@ -77,7 +83,7 @@ const char login_page_template[] =
     "<CENTER>"
     "<h1>Login to Spotify</h1>"
     "<p>Click the link below to login to Spotify</p>"
-    "<a href=\"https://accounts.spotify.com/authorize?client_id=%s&response_type=code&redirect_uri=%s\">Login</a>"
+    "<a href=\"https://accounts.spotify.com/authorize?client_id=%s&response_type=code&redirect_uri=%s&scope=user-read-currently-playing user-modify-playback-state\">Login</a>"
     "</CENTER>"
     "</BODY>"
     "</HTML>";
@@ -289,9 +295,14 @@ bool get_refresh_token(const char *auth_code, const char *redirect_uri) {
         strncpy(g_spotify_ctx.refresh_token, refresh_token->valuestring, sizeof(g_spotify_ctx.refresh_token) - 1);
         g_spotify_ctx.refresh_token[sizeof(g_spotify_ctx.refresh_token) - 1] = '\0';
 
-        if (g_spotify_ctx.debug_on) {
-            ESP_LOGI(TAG, "Refresh Token: %s", g_spotify_ctx.refresh_token);
+        cJSON *access_token = cJSON_GetObjectItem(root, "access_token");
+        if (access_token && cJSON_IsString(access_token)) {
+            strncpy(g_spotify_ctx.access_token, access_token->valuestring, sizeof(g_spotify_ctx.access_token) - 1);
+            g_spotify_ctx.access_token[sizeof(g_spotify_ctx.access_token) - 1] = '\0';
         }
+
+        ESP_LOGI(TAG, "Access Token: %s", g_spotify_ctx.access_token);
+        ESP_LOGI(TAG, "Refresh Token: %s", g_spotify_ctx.refresh_token);
 
         cJSON_Delete(root);
         esp_http_client_cleanup(client);
@@ -511,65 +522,191 @@ void start_webserver(SpotifyContext *ctx) {
     }
 }
 
-bool spotify_get_token(SpotifyContext *ctx) {
-    char post_data[1024];
-    snprintf(post_data, sizeof(post_data),
-             "grant_type=refresh_token&refresh_token=%s",
-             ctx->refresh_token);
+// {"access_token" : "BQDoxUgEEJBHTecdNPEHzkV0fwT9N97GC19EEhHCURvdcRELMC7rT1KarQb4wjjTH1yty92F0xqzhzVIosKbocUaFI48qd5eU-3GfERAcylmB7-Hcl4mQJEbpOygM4Cl-0If0i1IPNID2_fdX5Sm0lxIr2o8KP_AtDsuiHn1ns3MdKrCmafQf-OamrwsrPfCUUrbYoOwjYk2SZWPWtVv-l-dBz31K8uFJahoXf52KA",
+//  "token_type" : "Bearer",
+//  "expires_in" : 3600,
+//  "refresh_token" : "AQDRo4ZUkpu1CnZKwG5NCJgHgPD9j87ooxkEkV0rn-qjSH2fs7ss12j6LflqYzqomTS3vuQW7uXHgAoUY-dn09X4iYX3GCh97mxsWiGoWjI9fN2xRlNY1EvQwWVt5NAuN90"} < < <
+
+void get_current_playback(SpotifyContext *ctx, CurrentlyPlayingData *data) {
+    ESP_LOGI(TAG, "Getting current playback");
 
     esp_http_client_config_t config = {
-        .url = "https://accounts.spotify.com/api/token",
-        .method = HTTP_METHOD_POST,
+        .url = "https://api.spotify.com/v1/me/player/currently-playing?market=DE",
+        .method = HTTP_METHOD_GET,
         .transport_type = HTTP_TRANSPORT_OVER_SSL,
+        .cert_pem = _spotify_root_ca,
+        .event_handler = _http_event_handler,
+        .user_data = response_buffer,
+        .timeout_ms = 15000,
     };
+
+    // Clear the buffer before request
+    memset(response_buffer, 0, MAX_HTTP_OUTPUT_BUFFER);
 
     esp_http_client_handle_t client = esp_http_client_init(&config);
 
-    char auth_header[262];
+    char auth_header[308];
+    snprintf(auth_header, sizeof(auth_header), "Bearer %s", ctx->access_token);
+    esp_err_t header_err = esp_http_client_set_header(client, "Authorization", auth_header);
+    if (header_err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to set Authorization header: %s", esp_err_to_name(header_err));
+    }
 
-    char auth_str[256];
-    char auth_encoded[256];
-    snprintf(auth_str, sizeof(auth_str), "%s:%s", ctx->client_id, ctx->client_secret);
-    mbedtls_base64_encode((unsigned char *)auth_encoded, sizeof(auth_encoded), NULL, (const unsigned char *)auth_str, strlen(auth_str));
-
-    snprintf(auth_header, sizeof(auth_header), "Basic %s", auth_encoded);
-
-    esp_http_client_set_header(client, "Authorization", auth_header);
-    esp_http_client_set_header(client, "Content-Type", "application/x-www-form-urlencoded");
-    esp_http_client_set_post_field(client, post_data, strlen(post_data));
+    ESP_LOGI(TAG, "Authorization: %s", auth_header);
 
     esp_err_t err = esp_http_client_perform(client);
+
     if (err == ESP_OK) {
         int status = esp_http_client_get_status_code(client);
-        char *resp_body = malloc(esp_http_client_get_content_length(client) + 1);
-        esp_http_client_read(client, resp_body, esp_http_client_get_content_length(client));
-        resp_body[esp_http_client_get_content_length(client)] = 0;
+        if (status == 200) {
+            ESP_LOGI(TAG, "Current playback: %s", response_buffer);
+            // Parse the response and extract relevant information
+            cJSON *json = cJSON_Parse(response_buffer);
+            if (json) {
+                // Extract information from JSON
+                const cJSON *item = cJSON_GetObjectItem(json, "item");
+                if (item) {
+                    const cJSON *name = cJSON_GetObjectItem(item, "name");
+                    const cJSON *artist_array = cJSON_GetObjectItem(item, "artists");
 
-        cJSON *json = cJSON_Parse(resp_body);
-        const cJSON *access_token = cJSON_GetObjectItem(json, "access_token");
-        if (access_token && access_token->valuestring) {
-            strncpy(ctx->access_token, access_token->valuestring, sizeof(ctx->access_token));
-            free(resp_body);
-            cJSON_Delete(json);
-            esp_http_client_cleanup(client);
-            return true;
+                    char artist_names[128] = {0}; // Make sure it's big enough
+                    if (name && cJSON_IsArray(artist_array)) {
+                        int artist_count = cJSON_GetArraySize(artist_array);
+                        for (int i = 0; i < artist_count && i < 3; i++) {
+                            const cJSON *artist_obj = cJSON_GetArrayItem(artist_array, i);
+                            const cJSON *artist_name = cJSON_GetObjectItem(artist_obj, "name");
+                            if (artist_name && cJSON_IsString(artist_name)) {
+                                strcat(artist_names, artist_name->valuestring);
+                                if (i < artist_count - 1 && i < 2) {
+                                    strcat(artist_names, ", ");
+                                }
+                            }
+                        }
+                        strcpy(data->name, name->valuestring);
+                        strcpy(data->artists, artist_names);
+
+                        const cJSON *duration_ms = cJSON_GetObjectItem(item, "duration_ms");
+                        if (duration_ms && cJSON_IsNumber(duration_ms)) {
+                            data->duration_ms = duration_ms->valueint;
+                        }
+                        const cJSON *progress_ms = cJSON_GetObjectItem(json, "progress_ms");
+                        if (progress_ms && cJSON_IsNumber(progress_ms)) {
+                            data->progress_ms = progress_ms->valueint;
+                        }
+                        const cJSON *album = cJSON_GetObjectItem(item, "album");
+                        if (album) {
+                            const cJSON *images = cJSON_GetObjectItem(album, "images");
+                            if (images) {
+                                int artist_count = cJSON_GetArraySize(images);
+
+                                ESP_LOGI(TAG, "Images in the response %d", artist_count);
+
+                                const cJSON *image = cJSON_GetArrayItem(images, 2);
+                                if (image) {
+                                    const cJSON *url = cJSON_GetObjectItem(image, "url");
+                                    if (url && cJSON_IsString(url)) {
+
+                                        strcpy(data->album_image_url, url->valuestring);
+                                    }
+                                }
+                            }
+                        }
+
+                        const cJSON *is_playing = cJSON_GetObjectItem(json, "is_playing");
+                        if (is_playing) {
+                            data->is_playing = cJSON_IsTrue(is_playing);
+                        } else {
+                            data->is_playing = false; // Default to false if not present
+                        }
+
+                        ESP_LOGI(TAG, "Currently playing: %s by %s", name->valuestring, artist_names);
+                    }
+                }
+                cJSON_Delete(json);
+            }
+        } else {
+            ESP_LOGE(TAG, "Error: %d", status);
         }
-
-        free(resp_body);
-        cJSON_Delete(json);
+    } else {
+        ESP_LOGE(TAG, "HTTP request failed: %s", esp_err_to_name(err));
+        ESP_LOGE(TAG, "Response: %s", response_buffer);
     }
+
+    // heap information
+    size_t free_heap = esp_get_free_heap_size();
+    size_t min_free_heap = esp_get_minimum_free_heap_size();
+    ESP_LOGI(TAG, "get_current_playback heap: %zu bytes, Minimum free heap: %zu bytes", free_heap, min_free_heap);
+
     esp_http_client_cleanup(client);
-    return false;
 }
 
 void spotify_task(void *pvParameters) {
     // Wait for WiFi to connect
     while (wifi_connected == 0) {
-        vTaskDelay(pdMS_TO_TICKS(1000)); // 1 second delay
+        vTaskDelay(pdMS_TO_TICKS(10000)); // 1 second delay
     }
 
     // Get access token
     get_access_token(&g_spotify_ctx);
 
+    while (1) {
+        CurrentlyPlayingData *data = (CurrentlyPlayingData *)malloc(sizeof(CurrentlyPlayingData));
+        int32_t delay = 30000; // 30 seconds delay
+        if (data == NULL) {
+            ESP_LOGE(TAG, "Failed to allocate memory for CurrentlyPlayingData");
+            vTaskDelay(pdMS_TO_TICKS(10000)); // 10 seconds delay
+            continue;
+        }
+        memset(data, 0, sizeof(CurrentlyPlayingData));
+
+        if (is_auth(&g_spotify_ctx)) {
+
+            get_current_playback(&g_spotify_ctx, data);
+
+            ESP_LOGI(TAG, "Currently playing: %s by %s", data->name, data->artists);
+            ESP_LOGI(TAG, "Duration: %ld ms, Progress: %ld ms", data->duration_ms, data->progress_ms);
+            ESP_LOGI(TAG, "Album: %s", data->album_name);
+            ESP_LOGI(TAG, "Album Image URL: %s", data->album_image_url);
+            ESP_LOGI(TAG, "Is Playing: %s", data->is_playing ? "true" : "false");
+
+            delay = data->duration_ms - data->progress_ms + 5000; // Set delay to the remaining duration of the track
+        }
+
+        char name[16];
+        char artists[20];
+
+        if (strlen(data->name) > 15) {
+            strncpy(name, data->name, 13);
+            name[13] = '.';  // Add ellipsis
+            name[14] = '.';  // Add ellipsis
+            name[15] = '\0'; // Ensure null-termination
+        } else {
+            strcpy(name, data->name);
+        }
+        if (strlen(data->artists) > 19) {
+            strncpy(artists, data->artists, 17);
+            artists[17] = '.';  // Add ellipsis
+            artists[18] = '.';  // Add ellipsis
+            artists[19] = '\0'; // Ensure null-termination
+        } else {
+            strcpy(artists, data->artists);
+        }
+
+        _lock_acquire(&lvgl_api_lock);
+        setSpotifyData(name, artists, data->is_playing);
+        _lock_release(&lvgl_api_lock);
+
+        free(data);                       // Free the allocated memory for CurrentlyPlayingData
+        vTaskDelay(pdMS_TO_TICKS(delay)); // 30 seconds delay
+    }
     vTaskDelete(NULL);
 }
+
+// token_refresh
+
+// next_track
+
+// previous_track
+
+// play_track
+// pause_track

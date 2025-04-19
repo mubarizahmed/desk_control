@@ -27,6 +27,16 @@ typedef struct {
     httpd_handle_t server;
 } SpotifyContext;
 
+typedef struct {
+    char name[100];
+    char artists[100];
+    int32_t duration_ms;
+    int32_t progress_ms;
+    char album_name[100];
+    char album_image_url[100];
+    bool is_playing;
+} CurrentlyPlayingData;
+
 extern SpotifyContext g_spotify_ctx;
 
 void get_access_token(SpotifyContext *ctx);

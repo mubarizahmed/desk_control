@@ -70,6 +70,10 @@ static lv_obj_t *task_4_label;
 static lv_obj_t *pomodoro_overlay;
 static lv_obj_t *pomodoro_overlay_label;
 
+static lv_obj_t *sp_song_label;
+static lv_obj_t *sp_artist_label;
+static lv_obj_t *sp_play_icon;
+
 static lv_obj_t *circle = NULL;
 
 static const char *TAG = "UI";
@@ -528,14 +532,14 @@ void createSpotifyWidget() {
     lv_obj_remove_border_paddin_scrollbar(sp_cover_rect);
     lv_obj_align_to(sp_cover_rect, rect, LV_ALIGN_TOP_LEFT, 6, 0);
 
-    lv_obj_t *sp_song_label = lv_label_create(rect);
+    sp_song_label = lv_label_create(rect);
     lv_label_set_text(sp_song_label, "Now Playing");
     lv_obj_set_style_text_font(sp_song_label, &jetbrains_mono_bold_14, 0);
     lv_obj_set_style_text_color(sp_song_label, UI_BLACK, 0);
     lv_obj_set_style_text_align(sp_song_label, LV_TEXT_ALIGN_LEFT, 0);
     lv_obj_align_to(sp_song_label, rect, LV_ALIGN_TOP_LEFT, 100, 2);
 
-    lv_obj_t *sp_artist_label = lv_label_create(rect);
+    sp_artist_label = lv_label_create(rect);
     lv_label_set_text(sp_artist_label, "Artist");
     lv_obj_set_style_text_font(sp_artist_label, &jetbrains_mono_light_12, 0);
     lv_obj_set_style_text_color(sp_artist_label, UI_BLACK, 0);
@@ -562,7 +566,7 @@ void createSpotifyWidget() {
     lv_obj_remove_border_paddin_scrollbar(sp_play_btn);
     lv_obj_align_to(sp_play_btn, rect, LV_ALIGN_TOP_LEFT, 147, 38);
 
-    lv_obj_t *sp_play_icon = lv_label_create(sp_play_btn);
+    sp_play_icon = lv_label_create(sp_play_btn);
     lv_label_set_text(sp_play_icon, "▶");
     lv_obj_set_style_text_font(sp_play_icon, &jetbrains_mono_bold_18, 0);
     lv_obj_set_style_text_color(sp_play_icon, UI_WHITE, 0);
@@ -808,4 +812,16 @@ void setCalendarData(char *data) {
     lv_label_set_text(event_1_name, e1_name);
     lv_label_set_text(event_2_time, e2_time);
     lv_label_set_text(event_2_name, e2_name);
+}
+
+void setSpotifyData(char *name, char *artist, bool playing) {
+    // set the text of the label to the weather data
+    lv_label_set_text(sp_song_label, name);
+    lv_label_set_text(sp_artist_label, artist);
+
+    if (playing) {
+        lv_label_set_text(sp_play_icon, "■");
+    } else {
+        lv_label_set_text(sp_play_icon, "▶");
+    }
 }
