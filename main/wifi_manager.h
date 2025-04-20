@@ -11,7 +11,7 @@
 #define WIFI_MANAGER_H
 
 #include "esp_wifi.h"
-#include "wifi_conf.h"
+#include "secret_conf.h"
 
 /*
  * PUBLIC MACROS

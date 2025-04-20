@@ -14,11 +14,13 @@
 #include "esp_https_server.h"
 #include "esp_log.h"
 #include "esp_wifi.h"
+#include "jpeg_decoder.h"
 #include "mbedtls/base64.h"
 #include "string.h"
 #include <sys/param.h>
 
 #include "display_manager.h"
+#include "secret_conf.h"
 #include "spotify_serv.h"
 #include "ui.h"
 #include "wifi_manager.h"
@@ -36,9 +38,9 @@ static const char *TAG = "SPOTIFY_SERV";
 static char response_buffer[MAX_HTTP_OUTPUT_BUFFER];
 
 SpotifyContext g_spotify_ctx = {
-    .client_id = "",
-    .client_secret = "",
-    .refresh_token = "",
+    .client_id = SPOTIFY_CLIENT_ID,
+    .client_secret = SPOTIFY_CLIENT_SECRET,
+    .refresh_token = SPOTIFY_REFRESH_TOKEN,
     .access_token = "",
     .auth_code = "",
     .debug_on = false,
@@ -118,21 +120,29 @@ const char *_spotify_root_ca =
     "JCqVJUzKoZHm1Lesh3Sz8W2jmdv51b2EQJ8HmA==\n"
     "-----END CERTIFICATE-----\n";
 
+/*
+ * FUNCTION DEFINITIONS
+ */
 void start_webserver(SpotifyContext *ctx);
+bool get_access_token(SpotifyContext *ctx);
 
 // get access token
 // build the request
 bool is_auth(SpotifyContext *ctx) {
+    return !(strcmp(ctx->refresh_token, "") == 0 || strcmp(ctx->client_id, "") == 0 || strcmp(ctx->client_secret, "") == 0 || strcmp(ctx->access_token, "") == 0);
+}
+
+bool is_refresh_token(SpotifyContext *ctx) {
     return !(strcmp(ctx->refresh_token, "") == 0 || strcmp(ctx->client_id, "") == 0 || strcmp(ctx->client_secret, "") == 0);
 }
 
-void get_access_token(SpotifyContext *ctx) {
+void get_auth(SpotifyContext *ctx) {
     // This function should be implemented to get the access token from Spotify API
     // using the client_id, client_secret, and refresh_token.
     // The access token should be stored in ctx->access_token.
 
     // check if refresh token is empty
-    if (!is_auth(ctx)) {
+    if (!is_refresh_token(ctx)) {
         ESP_LOGE("SPOTIFY", "No refresh token available");
 
         // start web server for authentication
@@ -150,6 +160,18 @@ void get_access_token(SpotifyContext *ctx) {
                 // ESP_LOGI(TAG, "Go to this url in your Browser to login to spotify or enter your credentials: http://%s:%d/\n", WiFi.localIP().toString().c_str(), g_port);
             }
             start_webserver(ctx);
+        }
+    } else {
+        ESP_LOGI(TAG, "Refresh token available, getting access token...");
+        // Call the function to get the access token using the refresh token
+        // This function should be implemented to make a request to Spotify API
+        // and retrieve the access token.
+        if (get_access_token(ctx)) {
+            ESP_LOGI(TAG, "Access token retrieved successfully");
+            // Store the access token in ctx->access_token
+            // ctx->access_token = ...;
+        } else {
+            ESP_LOGE(TAG, "Failed to retrieve access token");
         }
     }
 }
@@ -318,6 +340,103 @@ bool get_refresh_token(const char *auth_code, const char *redirect_uri) {
     } else {
         ESP_LOGW("SPOTIFY", "No refresh token in response");
     }
+
+    cJSON_Delete(root);
+    esp_http_client_cleanup(client);
+    return false;
+}
+
+bool get_access_token(SpotifyContext *ctx) {
+    // This function should be implemented to get the access token from Spotify API
+    // using the client_id, client_secret, and refresh_token.
+    // The access token should be stored in ctx->access_token.
+
+    // check if refresh token is empty
+    if (!is_refresh_token(ctx)) {
+        ESP_LOGE("SPOTIFY", "No refresh token available");
+        return false;
+    }
+
+    char post_data[512];
+
+    // Construct POST data
+    snprintf(post_data, sizeof(post_data),
+             "grant_type=refresh_token&refresh_token=%s",
+             g_spotify_ctx.refresh_token);
+
+    ESP_LOGI(TAG, "Get access token POST data: %s", post_data);
+
+    // Clear the buffer before request
+    memset(response_buffer, 0, MAX_HTTP_OUTPUT_BUFFER);
+
+    esp_http_client_config_t config = {
+        .url = "https://accounts.spotify.com/api/token",
+        .method = HTTP_METHOD_POST,
+        .timeout_ms = 5000,
+        .cert_pem = _spotify_root_ca,
+        .event_handler = _http_event_handler,
+        .user_data = response_buffer,
+    };
+
+    esp_http_client_handle_t client = esp_http_client_init(&config);
+
+    esp_http_client_set_header(client, "Content-Type", "application/x-www-form-urlencoded");
+    esp_http_client_set_post_field(client, post_data, strlen(post_data));
+
+    esp_err_t err = esp_http_client_perform(client);
+    if (err != ESP_OK) {
+        ESP_LOGE("SPOTIFY", "HTTP request failed: %s", esp_err_to_name(err));
+        esp_http_client_cleanup(client);
+        return false;
+    }
+
+    ESP_LOGI(TAG, "Response: >>>%s<<<", response_buffer);
+
+    // Parse JSON response
+    cJSON *root = cJSON_Parse(response_buffer);
+    if (!root) {
+        ESP_LOGE("SPOTIFY", "Failed to parse JSON");
+        esp_http_client_cleanup(client);
+        return false;
+    }
+    cJSON *access_token = cJSON_GetObjectItem(root, "access_token");
+    if (access_token && cJSON_IsString(access_token)) {
+        strncpy(g_spotify_ctx.access_token, access_token->valuestring, sizeof(g_spotify_ctx.access_token) - 1);
+        g_spotify_ctx.access_token[sizeof(g_spotify_ctx.access_token) - 1] = '\0';
+    }
+
+    ESP_LOGI(TAG, "Access Token: %s", g_spotify_ctx.access_token);
+
+    cJSON_Delete(root);
+    esp_http_client_cleanup(client);
+
+    cJSON *refresh_token = cJSON_GetObjectItem(root, "refresh_token");
+    if (refresh_token && cJSON_IsString(refresh_token)) {
+        strncpy(g_spotify_ctx.refresh_token, refresh_token->valuestring, sizeof(g_spotify_ctx.refresh_token) - 1);
+        g_spotify_ctx.refresh_token[sizeof(g_spotify_ctx.refresh_token) - 1] = '\0';
+
+        ESP_LOGI(TAG, "Access Token: %s", g_spotify_ctx.access_token);
+        ESP_LOGI(TAG, "Refresh Token: %s", g_spotify_ctx.refresh_token);
+
+#ifdef DEBUG
+        // print heap information
+        size_t free_heap = esp_get_free_heap_size();
+        size_t min_free_heap = esp_get_minimum_free_heap_size();
+        ESP_LOGI(TAG, "get_access_token heap: %zu bytes, Minimum free heap: %zu bytes", free_heap, min_free_heap);
+#endif
+
+        cJSON_Delete(root);
+        esp_http_client_cleanup(client);
+        return true;
+    } else {
+        ESP_LOGW("SPOTIFY", "No refresh token in response");
+    }
+
+    cJSON_Delete(root);
+    esp_http_client_cleanup(client);
+    return false;
+
+    return true;
 
     cJSON_Delete(root);
     esp_http_client_cleanup(client);
@@ -522,11 +641,6 @@ void start_webserver(SpotifyContext *ctx) {
     }
 }
 
-// {"access_token" : "BQDoxUgEEJBHTecdNPEHzkV0fwT9N97GC19EEhHCURvdcRELMC7rT1KarQb4wjjTH1yty92F0xqzhzVIosKbocUaFI48qd5eU-3GfERAcylmB7-Hcl4mQJEbpOygM4Cl-0If0i1IPNID2_fdX5Sm0lxIr2o8KP_AtDsuiHn1ns3MdKrCmafQf-OamrwsrPfCUUrbYoOwjYk2SZWPWtVv-l-dBz31K8uFJahoXf52KA",
-//  "token_type" : "Bearer",
-//  "expires_in" : 3600,
-//  "refresh_token" : "AQDRo4ZUkpu1CnZKwG5NCJgHgPD9j87ooxkEkV0rn-qjSH2fs7ss12j6LflqYzqomTS3vuQW7uXHgAoUY-dn09X4iYX3GCh97mxsWiGoWjI9fN2xRlNY1EvQwWVt5NAuN90"} < < <
-
 void get_current_playback(SpotifyContext *ctx, CurrentlyPlayingData *data) {
     ESP_LOGI(TAG, "Getting current playback");
 
@@ -640,46 +754,76 @@ void get_current_playback(SpotifyContext *ctx, CurrentlyPlayingData *data) {
     esp_http_client_cleanup(client);
 }
 
-void spotify_task(void *pvParameters) {
-    // Wait for WiFi to connect
-    while (wifi_connected == 0) {
-        vTaskDelay(pdMS_TO_TICKS(10000)); // 1 second delay
+void get_image(const char *url, char *image_buffer, size_t buffer_size, int64_t *image_size) {
+    esp_http_client_config_t config = {
+        .url = url,
+        .method = HTTP_METHOD_GET,
+        .transport_type = HTTP_TRANSPORT_OVER_SSL,
+        .cert_pem = _spotify_root_ca,
+        .event_handler = _http_event_handler,
+        .user_data = image_buffer,
+        .timeout_ms = 15000,
+    };
+
+    // Clear the buffer before request
+    memset(image_buffer, 0, buffer_size);
+
+    esp_http_client_handle_t client = esp_http_client_init(&config);
+
+    esp_err_t err = esp_http_client_perform(client);
+
+    if (err == ESP_OK) {
+        int status = esp_http_client_get_status_code(client);
+        if (status == 200) {
+
+            *image_size = esp_http_client_get_content_length(client);
+            ESP_LOGI(TAG, "Received image data (%lld bytes)", esp_http_client_get_content_length(client));
+            ESP_LOG_BUFFER_HEXDUMP(TAG, image_buffer, 32, ESP_LOG_INFO); // Log first 32 bytes for debugging
+
+        } else {
+            ESP_LOGE(TAG, "Error: %d", status);
+        }
+    } else {
+        ESP_LOGE(TAG, "HTTP request failed: %s", esp_err_to_name(err));
     }
 
-    // Get access token
-    get_access_token(&g_spotify_ctx);
+    esp_http_client_cleanup(client);
+}
 
-    while (1) {
-        CurrentlyPlayingData *data = (CurrentlyPlayingData *)malloc(sizeof(CurrentlyPlayingData));
-        int32_t delay = 30000; // 30 seconds delay
-        if (data == NULL) {
-            ESP_LOGE(TAG, "Failed to allocate memory for CurrentlyPlayingData");
-            vTaskDelay(pdMS_TO_TICKS(10000)); // 10 seconds delay
-            continue;
-        }
-        memset(data, 0, sizeof(CurrentlyPlayingData));
+void update_current_playback(SpotifyContext *ctx, int32_t *delay) {
+    CurrentlyPlayingData *data = (CurrentlyPlayingData *)malloc(sizeof(CurrentlyPlayingData));
 
-        if (is_auth(&g_spotify_ctx)) {
+    if (data == NULL) {
+        ESP_LOGE(TAG, "Failed to allocate memory for CurrentlyPlayingData");
+        vTaskDelay(pdMS_TO_TICKS(10000)); // 10 seconds delay
+        free(data);
+        return;
+    }
+    memset(data, 0, sizeof(CurrentlyPlayingData));
 
-            get_current_playback(&g_spotify_ctx, data);
+    if (is_auth(&g_spotify_ctx)) {
 
-            ESP_LOGI(TAG, "Currently playing: %s by %s", data->name, data->artists);
-            ESP_LOGI(TAG, "Duration: %ld ms, Progress: %ld ms", data->duration_ms, data->progress_ms);
-            ESP_LOGI(TAG, "Album: %s", data->album_name);
-            ESP_LOGI(TAG, "Album Image URL: %s", data->album_image_url);
-            ESP_LOGI(TAG, "Is Playing: %s", data->is_playing ? "true" : "false");
+        get_current_playback(&g_spotify_ctx, data);
 
-            delay = data->duration_ms - data->progress_ms + 5000; // Set delay to the remaining duration of the track
-        }
+        ESP_LOGI(TAG, "Currently playing: %s by %s", data->name, data->artists);
+        ESP_LOGI(TAG, "Duration: %ld ms, Progress: %ld ms", data->duration_ms, data->progress_ms);
+        ESP_LOGI(TAG, "Album: %s", data->album_name);
+        ESP_LOGI(TAG, "Album Image URL: %s", data->album_image_url);
+        ESP_LOGI(TAG, "Is Playing: %s", data->is_playing ? "true" : "false");
 
-        char name[16];
+        *delay = data->duration_ms - data->progress_ms + 5000; // Set delay to the remaining duration of the track
+    }
+
+    if (data->name[0] != '\0') {
+
+        char name[18];
         char artists[20];
 
-        if (strlen(data->name) > 15) {
-            strncpy(name, data->name, 13);
-            name[13] = '.';  // Add ellipsis
-            name[14] = '.';  // Add ellipsis
-            name[15] = '\0'; // Ensure null-termination
+        if (strlen(data->name) > 17) {
+            strncpy(name, data->name, 15);
+            name[15] = '.';  // Add ellipsis
+            name[16] = '.';  // Add ellipsis
+            name[17] = '\0'; // Ensure null-termination
         } else {
             strcpy(name, data->name);
         }
@@ -692,17 +836,89 @@ void spotify_task(void *pvParameters) {
             strcpy(artists, data->artists);
         }
 
-        _lock_acquire(&lvgl_api_lock);
-        setSpotifyData(name, artists, data->is_playing);
-        _lock_release(&lvgl_api_lock);
+        // get image 64x64
+        char *image_buffer = (char *)malloc(4096); // Adjust size as needed
+        if (image_buffer == NULL) {
+            ESP_LOGE(TAG, "Failed to allocate memory for image buffer");
+            free(data);                       // Free the allocated memory for CurrentlyPlayingData
+            vTaskDelay(pdMS_TO_TICKS(10000)); // 10 seconds delay
+            return;
+        }
+        char *out_img_buf = (char *)malloc(64 * 64 * sizeof(uint16_t)); // Adjust size as needed
+        if (out_img_buf == NULL) {
+            ESP_LOGE(TAG, "Failed to allocate memory for output image buffer");
+            free(image_buffer);               // Free the image buffer
+            free(data);                       // Free the allocated memory for CurrentlyPlayingData
+            vTaskDelay(pdMS_TO_TICKS(10000)); // 10 seconds delay
+            return;
+        }
 
-        free(data);                       // Free the allocated memory for CurrentlyPlayingData
+        int64_t image_size = 0;
+
+        get_image(data->album_image_url, image_buffer, 4096, &image_size);
+
+        esp_jpeg_image_cfg_t jpeg_cfg = {
+            .indata = (uint8_t *)image_buffer,
+            .indata_size = (uint32_t)image_size,
+            .outbuf = (uint8_t *)out_img_buf,
+            .outbuf_size = 64 * 64 * sizeof(uint16_t),
+            .out_format = JPEG_IMAGE_FORMAT_RGB565,
+            .out_scale = JPEG_IMAGE_SCALE_0,
+            .flags = {
+                // .swap_color_bytes = 1,
+
+            }};
+        esp_jpeg_image_output_t outimg;
+
+        err_t res;
+        res = esp_jpeg_decode(&jpeg_cfg, &outimg);
+        if (res != ESP_OK) {
+            ESP_LOGE(TAG, "JPEG decode failed: %s", esp_err_to_name(res));
+
+            setSpotifyTextData(name, artists, data->is_playing); // Set text data without image
+
+            free(image_buffer);               // Free the image buffer
+            free(out_img_buf);                // Free the output image buffer
+            free(data);                       // Free the allocated memory for CurrentlyPlayingData
+            vTaskDelay(pdMS_TO_TICKS(10000)); // 10 seconds delay
+            return;
+        }
+        ESP_LOGI(TAG, "JPEG decode done");
+        ESP_LOG_BUFFER_HEXDUMP(TAG, out_img_buf, 32, ESP_LOG_INFO);
+        ESP_LOGI(TAG, "JPEG decode size %d x %d", outimg.width, outimg.height);
+
+        free(image_buffer); // Free the image buffer after use
+
+        _lock_acquire(&lvgl_api_lock);
+        setSpotifyData(name, artists, out_img_buf, data->is_playing);
+
+        _lock_release(&lvgl_api_lock);
+        free(out_img_buf); // Free the output image buffer after use
+    }
+    free(data);
+}
+
+void spotify_task(void *pvParameters) {
+    // Wait for WiFi to connect
+    while (wifi_connected == 0) {
+        vTaskDelay(pdMS_TO_TICKS(10000)); // 1 second delay
+    }
+
+    // Get access token
+    get_auth(&g_spotify_ctx);
+    int32_t delay = 30000; // Default delay of 30 seconds
+    while (1) {
+        delay = 30000; // 30 seconds delay
+        update_current_playback(&g_spotify_ctx, &delay);
+
+#ifdef DEBUG
+        delay = 45000; // Reset delay to 45 seconds
+#endif
+
         vTaskDelay(pdMS_TO_TICKS(delay)); // 30 seconds delay
     }
     vTaskDelete(NULL);
 }
-
-// token_refresh
 
 // next_track
 

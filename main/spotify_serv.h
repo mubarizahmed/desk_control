@@ -39,7 +39,6 @@ typedef struct {
 
 extern SpotifyContext g_spotify_ctx;
 
-void get_access_token(SpotifyContext *ctx);
 void spotify_task(void *pvParameters);
 
 #endif /* SPOTIFY_SERV_H */

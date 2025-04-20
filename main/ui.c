@@ -73,6 +73,9 @@ static lv_obj_t *pomodoro_overlay_label;
 static lv_obj_t *sp_song_label;
 static lv_obj_t *sp_artist_label;
 static lv_obj_t *sp_play_icon;
+static lv_obj_t *sp_cover_rect;
+static lv_obj_t *sp_cover_img;
+static lv_obj_t *sp_cover_img_buffer;
 
 static lv_obj_t *circle = NULL;
 
@@ -526,11 +529,20 @@ void createSpotifyWidget() {
     lv_obj_set_style_border_width(rect, 2, 0);
     lv_obj_set_style_border_side(rect, LV_BORDER_SIDE_TOP, 0);
 
-    lv_obj_t *sp_cover_rect = lv_obj_create(rect);
-    lv_obj_set_size(sp_cover_rect, 84, 84);
+    sp_cover_rect = lv_obj_create(rect);
+    lv_obj_set_size(sp_cover_rect, 84, 64);
     lv_obj_set_style_bg_color(sp_cover_rect, UI_BLACK, 0);
     lv_obj_remove_border_paddin_scrollbar(sp_cover_rect);
     lv_obj_align_to(sp_cover_rect, rect, LV_ALIGN_TOP_LEFT, 6, 0);
+
+    sp_cover_img = lv_img_create(sp_cover_rect);
+    // lv_img_set_src(sp_cover_img, sp_img_dsc);
+    lv_obj_set_style_bg_color(rect, UI_SPOTIFY_GREEN, 0);
+    lv_img_set_src(sp_cover_img, LV_SYMBOL_DUMMY "Cover Image");
+    lv_obj_set_style_img_recolor(sp_cover_img, UI_WHITE, 0);
+    lv_obj_set_size(sp_cover_img, 64, 64);
+    lv_obj_remove_border_paddin_scrollbar(sp_cover_img);
+    lv_obj_align_to(sp_cover_img, sp_cover_rect, LV_ALIGN_CENTER, 0, 0);
 
     sp_song_label = lv_label_create(rect);
     lv_label_set_text(sp_song_label, "Now Playing");
@@ -813,15 +825,30 @@ void setCalendarData(char *data) {
     lv_label_set_text(event_2_time, e2_time);
     lv_label_set_text(event_2_name, e2_name);
 }
-
-void setSpotifyData(char *name, char *artist, bool playing) {
-    // set the text of the label to the weather data
+void setSpotifyTextData(char *name, char *artist, bool playing) {
     lv_label_set_text(sp_song_label, name);
     lv_label_set_text(sp_artist_label, artist);
+    lv_label_set_text(sp_play_icon, playing ? "■" : "▶");
+}
 
-    if (playing) {
-        lv_label_set_text(sp_play_icon, "■");
-    } else {
-        lv_label_set_text(sp_play_icon, "▶");
+void setSpotifyData(char *name, char *artist, char *image, bool playing) {
+    setSpotifyTextData(name, artist, playing);
+
+    if (sp_cover_img != NULL) {
+        lv_obj_del(sp_cover_img);
     }
+
+    if (sp_cover_img_buffer != NULL) {
+        free(sp_cover_img_buffer);
+    }
+    sp_cover_img_buffer = malloc(64 * 64 * 2);
+    memcpy(sp_cover_img_buffer, image, 64 * 64 * 2);
+
+    sp_cover_img = lv_canvas_create(sp_cover_rect);
+    lv_obj_set_size(sp_cover_img, 64, 64);
+    lv_obj_center(sp_cover_img);
+    lv_obj_set_style_bg_color(sp_cover_img, UI_BLACK, 0);
+    lv_obj_remove_border_paddin_scrollbar(sp_cover_img);
+    lv_canvas_set_buffer(sp_cover_img, sp_cover_img_buffer, 64, 64, LV_COLOR_FORMAT_RGB565);
+    // lv_canvas_copy_buf(canvas, image, 64, 64);
 }

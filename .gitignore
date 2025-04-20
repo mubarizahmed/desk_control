@@ -2,10 +2,19 @@
 .devcontainer
 
 build
-managed_components
+
+# Ignore everything in managed_components
+managed_components/**
+
+# Re-include all directories so Git can find files inside them
+!managed_components/*/
+
+# Then re-include _conf.h files
+!managed_components/*/*_conf.h
 
 *.lock
 sdkconfig.*
 main/SpotifyEsp32.h
 main/SpotifyEsp32.cpp
 main/wifi_conf.h
+main/secret_conf.h

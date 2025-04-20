@@ -24,6 +24,7 @@ void setTime(int hr, int min, char *date);
 void flashPomodoroOverlay(bool red);
 void setPomodoro(char *text);
 void setCalendarData(char *data);
-void setSpotifyData(char *name, char *artist, bool playing);
+void setSpotifyTextData(char *name, char *artist, bool playing);
+void setSpotifyData(char *name, char *artist, char *image, bool playing);
 
 #endif // UI_H
