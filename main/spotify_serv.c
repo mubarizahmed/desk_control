@@ -927,8 +927,8 @@ esp_err_t next_track() {
     esp_http_client_handle_t client = NULL;
 
     esp_http_client_config_t config = {
-        .url = "https://api.spotify.com/v1/me/player/pause",
-        .method = HTTP_METHOD_PUT,
+        .url = "https://api.spotify.com/v1/me/player/next",
+        .method = HTTP_METHOD_POST,
         .transport_type = HTTP_TRANSPORT_OVER_SSL,
         .cert_pem = _spotify_root_ca,
         .event_handler = _http_event_handler,
@@ -1129,6 +1129,19 @@ esp_err_t resume_track() {
     }
 
     ESP_LOGI(TAG, "Authorization: %s", auth_header);
+
+    // Set Content-Type header
+    if (esp_http_client_set_header(client, "Content-Type", "application/json") != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to set Content-Type header");
+        goto cleanup;
+    }
+    static const char *body = "{\"position_ms\": 0}";
+
+    // Set body
+    if (esp_http_client_set_post_field(client, body, strlen(body)) != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to set POST body");
+        goto cleanup;
+    }
 
     esp_err_t err = esp_http_client_perform(client);
     if (err == ESP_OK) {
