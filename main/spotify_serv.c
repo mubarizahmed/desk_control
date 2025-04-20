@@ -52,6 +52,8 @@ SpotifyContext g_spotify_ctx = {
 
 const char *spotify_scopes = "user-read-currently-playing user-modify-playback-state";
 
+// static const char *url_play = "https://api.spotify.com/v1/me/player/pause";
+
 extern const uint8_t server_cert_pem_start[] asm("_binary_server_cert_pem_start");
 extern const uint8_t server_cert_pem_end[] asm("_binary_server_cert_pem_end");
 extern const uint8_t server_key_pem_start[] asm("_binary_server_key_pem_start");
@@ -866,7 +868,6 @@ void update_current_playback(SpotifyContext *ctx, int32_t *delay) {
             .out_scale = JPEG_IMAGE_SCALE_0,
             .flags = {
                 // .swap_color_bytes = 1,
-
             }};
         esp_jpeg_image_output_t outimg;
 
@@ -921,8 +922,220 @@ void spotify_task(void *pvParameters) {
 }
 
 // next_track
+esp_err_t next_track() {
+    esp_err_t ret = ESP_FAIL;
+    esp_http_client_handle_t client = NULL;
+
+    esp_http_client_config_t config = {
+        .url = "https://api.spotify.com/v1/me/player/pause",
+        .method = HTTP_METHOD_PUT,
+        .transport_type = HTTP_TRANSPORT_OVER_SSL,
+        .cert_pem = _spotify_root_ca,
+        .event_handler = _http_event_handler,
+        .user_data = response_buffer,
+        .timeout_ms = 15000,
+    };
+
+    // Clear the buffer before the request
+    memset(response_buffer, 0, MAX_HTTP_OUTPUT_BUFFER);
+
+    client = esp_http_client_init(&config);
+    if (client == NULL) {
+        ESP_LOGE(TAG, "Failed to initialize HTTP client");
+        return ESP_FAIL;
+    }
+
+    char auth_header[308];
+    snprintf(auth_header, sizeof(auth_header), "Bearer %s", g_spotify_ctx.access_token);
+    esp_err_t header_err = esp_http_client_set_header(client, "Authorization", auth_header);
+    if (header_err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to set Authorization header: %s", esp_err_to_name(header_err));
+        goto cleanup;
+    }
+
+    ESP_LOGI(TAG, "Authorization: %s", auth_header);
+
+    esp_err_t err = esp_http_client_perform(client);
+    if (err == ESP_OK) {
+        int status = esp_http_client_get_status_code(client);
+        if (status == 204 || status == 200) {
+            ESP_LOGI(TAG, "Next command sent successfully");
+            int32_t delay = 30000; // Default delay of 30 seconds
+            update_current_playback(&g_spotify_ctx, &delay);
+            ret = ESP_OK;
+        } else {
+            ESP_LOGE(TAG, "Unexpected status code: %d", status);
+        }
+    } else {
+        ESP_LOGE(TAG, "HTTP request failed: %s", esp_err_to_name(err));
+    }
+
+cleanup:
+    if (client != NULL) {
+        esp_http_client_cleanup(client);
+    }
+    return ret;
+}
 
 // previous_track
+esp_err_t previous_track() {
+    esp_err_t ret = ESP_FAIL;
+    esp_http_client_handle_t client = NULL;
+
+    esp_http_client_config_t config = {
+        .url = "https://api.spotify.com/v1/me/player/previous",
+        .method = HTTP_METHOD_POST,
+        .transport_type = HTTP_TRANSPORT_OVER_SSL,
+        .cert_pem = _spotify_root_ca,
+        .event_handler = _http_event_handler,
+        .user_data = response_buffer,
+        .timeout_ms = 15000,
+    };
+
+    // Clear the buffer before the request
+    memset(response_buffer, 0, MAX_HTTP_OUTPUT_BUFFER);
+
+    client = esp_http_client_init(&config);
+    if (client == NULL) {
+        ESP_LOGE(TAG, "Failed to initialize HTTP client");
+        return ESP_FAIL;
+    }
+
+    char auth_header[308];
+    snprintf(auth_header, sizeof(auth_header), "Bearer %s", g_spotify_ctx.access_token);
+    esp_err_t header_err = esp_http_client_set_header(client, "Authorization", auth_header);
+    if (header_err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to set Authorization header: %s", esp_err_to_name(header_err));
+        goto cleanup;
+    }
+
+    ESP_LOGI(TAG, "Authorization: %s", auth_header);
+
+    esp_err_t err = esp_http_client_perform(client);
+    if (err == ESP_OK) {
+        int status = esp_http_client_get_status_code(client);
+        if (status == 204 || status == 200) {
+            ESP_LOGI(TAG, "Previous command sent successfully");
+            int32_t delay = 30000; // Default delay of 30 seconds
+            update_current_playback(&g_spotify_ctx, &delay);
+            ret = ESP_OK;
+        } else {
+            ESP_LOGE(TAG, "Unexpected status code: %d", status);
+        }
+    } else {
+        ESP_LOGE(TAG, "HTTP request failed: %s", esp_err_to_name(err));
+    }
+
+cleanup:
+    if (client != NULL) {
+        esp_http_client_cleanup(client);
+    }
+    return ret;
+}
+
+// pause_track
+esp_err_t pause_track() {
+    esp_err_t ret = ESP_FAIL;
+    esp_http_client_handle_t client = NULL;
+
+    esp_http_client_config_t config = {
+        .url = "https://api.spotify.com/v1/me/player/pause",
+        .method = HTTP_METHOD_PUT,
+        .transport_type = HTTP_TRANSPORT_OVER_SSL,
+        .cert_pem = _spotify_root_ca,
+        .event_handler = _http_event_handler,
+        .user_data = response_buffer,
+        .timeout_ms = 15000,
+    };
+
+    // Clear the buffer before the request
+    memset(response_buffer, 0, MAX_HTTP_OUTPUT_BUFFER);
+
+    client = esp_http_client_init(&config);
+    if (client == NULL) {
+        ESP_LOGE(TAG, "Failed to initialize HTTP client");
+        return ESP_FAIL;
+    }
+
+    char auth_header[308];
+    snprintf(auth_header, sizeof(auth_header), "Bearer %s", g_spotify_ctx.access_token);
+    esp_err_t header_err = esp_http_client_set_header(client, "Authorization", auth_header);
+    if (header_err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to set Authorization header: %s", esp_err_to_name(header_err));
+        goto cleanup;
+    }
+
+    ESP_LOGI(TAG, "Authorization: %s", auth_header);
+
+    esp_err_t err = esp_http_client_perform(client);
+    if (err == ESP_OK) {
+        int status = esp_http_client_get_status_code(client);
+        if (status == 204 || status == 200) {
+            ESP_LOGI(TAG, "Pause command sent successfully");
+            int32_t delay = 30000; // Default delay of 30 seconds
+            update_current_playback(&g_spotify_ctx, &delay);
+            ret = ESP_OK;
+        } else {
+            ESP_LOGE(TAG, "Unexpected status code: %d", status);
+        }
+    } else {
+        ESP_LOGE(TAG, "HTTP request failed: %s", esp_err_to_name(err));
+    }
+
+cleanup:
+    if (client != NULL) {
+        esp_http_client_cleanup(client);
+    }
+    return ret;
+}
 
 // play_track
-// pause_track
+esp_err_t resume_track() {
+    esp_http_client_config_t config = {
+        // doesn't work crashes app??
+        // .url = "https://api.spotify.com/v1/me/player/play",
+        .url = "https://api.spotify.com/v1/me/player/pause",
+        .method = HTTP_METHOD_PUT,
+        .transport_type = HTTP_TRANSPORT_OVER_SSL,
+        .cert_pem = _spotify_root_ca,
+        .event_handler = _http_event_handler,
+        .user_data = response_buffer,
+        .timeout_ms = 15000,
+    };
+
+    // Clear the buffer before request
+    memset(response_buffer, 0, MAX_HTTP_OUTPUT_BUFFER);
+
+    esp_http_client_handle_t client = esp_http_client_init(&config);
+
+    char auth_header[308];
+    snprintf(auth_header, sizeof(auth_header), "Bearer %s", g_spotify_ctx.access_token);
+    esp_err_t header_err = esp_http_client_set_header(client, "Authorization", auth_header);
+    if (header_err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to set Authorization header: %s", esp_err_to_name(header_err));
+        return ESP_FAIL;
+    }
+
+    ESP_LOGI(TAG, "Authorization: %s", auth_header);
+
+    esp_err_t err = esp_http_client_perform(client);
+
+    if (err == ESP_OK) {
+        int status = esp_http_client_get_status_code(client);
+        if (status == 204 || status == 200) {
+            ESP_LOGI(TAG, "Pause command sent successfully");
+            int32_t delay = 30000; // Default delay of 30 seconds
+            update_current_playback(&g_spotify_ctx, &delay);
+        } else {
+            ESP_LOGE(TAG, "Error: %d", status);
+            return ESP_FAIL;
+        }
+
+    } else {
+        ESP_LOGE(TAG, "HTTP request failed: %s", esp_err_to_name(err));
+        return ESP_FAIL;
+    }
+
+    esp_http_client_cleanup(client);
+    return ESP_OK;
+}

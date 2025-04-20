@@ -40,5 +40,9 @@ typedef struct {
 extern SpotifyContext g_spotify_ctx;
 
 void spotify_task(void *pvParameters);
+esp_err_t next_track();
+esp_err_t previous_track();
+esp_err_t resume_track();
+esp_err_t pause_track();
 
 #endif /* SPOTIFY_SERV_H */

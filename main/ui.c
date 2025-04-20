@@ -11,6 +11,7 @@
 #include "esp_log.h"
 #include "lvgl.h"
 #include "pomodoro.h"
+#include "spotify_serv.h"
 #include "string.h"
 
 // colors
@@ -117,6 +118,28 @@ static void pomodoro_stop_cb(lv_event_t *e) {
     lv_obj_add_flag(pomodoro_overlay_label, LV_OBJ_FLAG_HIDDEN);
     lv_obj_set_style_bg_color(pomodoro_overlay, UI_BLACK, 0);
     lv_obj_set_style_text_color(pomodoro_overlay_label, UI_WHITE, 0);
+}
+
+static void spotify_play_cb(lv_event_t *e) {
+    // get user data
+    char *play_button_val = lv_label_get_text(sp_play_icon);
+    if (strcmp(play_button_val, "▶") == 0) {
+        ESP_LOGI(TAG, "Spotify play cb play");
+        resume_track();
+    } else {
+        ESP_LOGI(TAG, "Spotify play cb pause");
+        pause_track();
+    }
+}
+
+static void spotify_next_cb(lv_event_t *e) {
+    ESP_LOGI(TAG, "Spotify next cb");
+    next_track();
+}
+
+static void spotify_prev_cb(lv_event_t *e) {
+    ESP_LOGI(TAG, "Spotify prev cb");
+    previous_track();
 }
 
 static void set_angle(void *obj, int32_t v) {
@@ -564,6 +587,8 @@ void createSpotifyWidget() {
     lv_obj_set_style_bg_color(sp_prev_btn, UI_BLACK, 0);
     lv_obj_remove_border_paddin_scrollbar(sp_prev_btn);
     lv_obj_align_to(sp_prev_btn, rect, LV_ALIGN_TOP_LEFT, 100, 38);
+    lv_obj_add_flag(sp_prev_btn, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(sp_prev_btn, spotify_prev_cb, LV_EVENT_CLICKED, NULL);
 
     lv_obj_t *sp_prev_icon = lv_label_create(sp_prev_btn);
     lv_label_set_text(sp_prev_icon, "«");
@@ -577,6 +602,8 @@ void createSpotifyWidget() {
     lv_obj_set_style_bg_color(sp_play_btn, UI_BLACK, 0);
     lv_obj_remove_border_paddin_scrollbar(sp_play_btn);
     lv_obj_align_to(sp_play_btn, rect, LV_ALIGN_TOP_LEFT, 147, 38);
+    lv_obj_add_flag(sp_play_btn, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(sp_play_btn, spotify_play_cb, LV_EVENT_CLICKED, NULL);
 
     sp_play_icon = lv_label_create(sp_play_btn);
     lv_label_set_text(sp_play_icon, "▶");
@@ -590,6 +617,8 @@ void createSpotifyWidget() {
     lv_obj_set_style_bg_color(sp_next_btn, UI_BLACK, 0);
     lv_obj_remove_border_paddin_scrollbar(sp_next_btn);
     lv_obj_align_to(sp_next_btn, rect, LV_ALIGN_TOP_LEFT, 194, 38);
+    lv_obj_add_flag(sp_next_btn, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(sp_next_btn, spotify_next_cb, LV_EVENT_CLICKED, NULL);
 
     lv_obj_t *sp_next_icon = lv_label_create(sp_next_btn);
     lv_label_set_text(sp_next_icon, "»");
