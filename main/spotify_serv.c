@@ -1091,10 +1091,18 @@ cleanup:
 
 // play_track
 esp_err_t resume_track() {
+    esp_err_t ret = ESP_FAIL;
+    esp_http_client_handle_t client = NULL;
+
+    char root_url[45] = "https://api.spotify.com/v1/me/player/";
+    char play_url[5];
+    snprintf(play_url, sizeof(play_url), "play");
+    strncat(root_url, play_url, sizeof(root_url) - strlen(root_url) - 1);
+
     esp_http_client_config_t config = {
-        // doesn't work crashes app??
-        .url = "https://api.spotify.com/v1/me/player/play",
-        // .url = "https://api.spotify.com/v1/me/player/pause",
+        // somehow crashes app with this URL??
+        // .url = "https://api.spotify.com/v1/me/player/play",
+        .url = root_url,
         .method = HTTP_METHOD_PUT,
         .transport_type = HTTP_TRANSPORT_OVER_SSL,
         .cert_pem = _spotify_root_ca,
@@ -1103,39 +1111,43 @@ esp_err_t resume_track() {
         .timeout_ms = 15000,
     };
 
-    // Clear the buffer before request
+    // Clear the buffer before the request
     memset(response_buffer, 0, MAX_HTTP_OUTPUT_BUFFER);
 
-    esp_http_client_handle_t client = esp_http_client_init(&config);
+    client = esp_http_client_init(&config);
+    if (client == NULL) {
+        ESP_LOGE(TAG, "Failed to initialize HTTP client");
+        return ESP_FAIL;
+    }
 
     char auth_header[308];
     snprintf(auth_header, sizeof(auth_header), "Bearer %s", g_spotify_ctx.access_token);
     esp_err_t header_err = esp_http_client_set_header(client, "Authorization", auth_header);
     if (header_err != ESP_OK) {
         ESP_LOGE(TAG, "Failed to set Authorization header: %s", esp_err_to_name(header_err));
-        return ESP_FAIL;
+        goto cleanup;
     }
 
     ESP_LOGI(TAG, "Authorization: %s", auth_header);
 
     esp_err_t err = esp_http_client_perform(client);
-
     if (err == ESP_OK) {
         int status = esp_http_client_get_status_code(client);
         if (status == 204 || status == 200) {
             ESP_LOGI(TAG, "Pause command sent successfully");
             int32_t delay = 30000; // Default delay of 30 seconds
             update_current_playback(&g_spotify_ctx, &delay);
+            ret = ESP_OK;
         } else {
-            ESP_LOGE(TAG, "Error: %d", status);
-            return ESP_FAIL;
+            ESP_LOGE(TAG, "Unexpected status code: %d", status);
         }
-
     } else {
         ESP_LOGE(TAG, "HTTP request failed: %s", esp_err_to_name(err));
-        return ESP_FAIL;
     }
 
-    esp_http_client_cleanup(client);
-    return ESP_OK;
+cleanup:
+    if (client != NULL) {
+        esp_http_client_cleanup(client);
+    }
+    return ret;
 }
