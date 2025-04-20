@@ -1093,8 +1093,8 @@ cleanup:
 esp_err_t resume_track() {
     esp_http_client_config_t config = {
         // doesn't work crashes app??
-        // .url = "https://api.spotify.com/v1/me/player/play",
-        .url = "https://api.spotify.com/v1/me/player/pause",
+        .url = "https://api.spotify.com/v1/me/player/play",
+        // .url = "https://api.spotify.com/v1/me/player/pause",
         .method = HTTP_METHOD_PUT,
         .transport_type = HTTP_TRANSPORT_OVER_SSL,
         .cert_pem = _spotify_root_ca,
