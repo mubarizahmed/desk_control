@@ -999,7 +999,37 @@ void spotify_task(void *pvParameters) {
     get_auth(&g_spotify_ctx);
     int32_t delay = 30000; // Default delay of 30 seconds
     while (1) {
-        delay = 30000; // 30 seconds delay
+        if (spotify_event_group == NULL) {
+            ESP_LOGE(TAG, "Spotify event group is NULL");
+            vTaskDelay(pdMS_TO_TICKS(10000)); // 10 seconds delay
+            continue;
+        }
+        EventBits_t uxBits = xEventGroupWaitBits(
+            spotify_event_group,
+            // SPOTIFY_CMD_RESUME | SPOTIFY_CMD_PAUSE | SPOTIFY_CMD_PREV |
+            SPOTIFY_CMD_NEXT,
+            pdTRUE,              // Clear the bits before returning
+            pdFALSE,             // Wait for any bit to be set
+            pdMS_TO_TICKS(delay) // Wait for the specified delay
+        );
+
+        if (uxBits & SPOTIFY_CMD_RESUME) {
+            ESP_LOGI(TAG, "Resume command received");
+            pause_track();
+            vTaskDelay(pdMS_TO_TICKS(5000)); // 5 second delay
+        } else if (uxBits & SPOTIFY_CMD_PAUSE) {
+            ESP_LOGI(TAG, "Pause command received");
+            pause_track();
+            vTaskDelay(pdMS_TO_TICKS(5000)); // 5 second delay
+        } else if (uxBits & SPOTIFY_CMD_PREV) {
+            ESP_LOGI(TAG, "Previous command received");
+            previous_track();
+            vTaskDelay(pdMS_TO_TICKS(5000)); // 5 second delay
+        } else if (uxBits & SPOTIFY_CMD_NEXT) {
+            ESP_LOGI(TAG, "Next command received");
+            next_track();
+            vTaskDelay(pdMS_TO_TICKS(5000)); // 5 second delay
+        }
         update_current_playback(&g_spotify_ctx, &delay);
 
 #ifdef DEBUG

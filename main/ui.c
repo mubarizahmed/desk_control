@@ -125,21 +125,25 @@ static void spotify_play_cb(lv_event_t *e) {
     char *play_button_val = lv_label_get_text(sp_play_icon);
     if (strcmp(play_button_val, "▶") == 0) {
         ESP_LOGI(TAG, "Spotify play cb play");
-        resume_track();
+        // resume_track();
+        xEventGroupSetBits(spotify_event_group, SPOTIFY_CMD_RESUME);
     } else {
         ESP_LOGI(TAG, "Spotify play cb pause");
-        pause_track();
+        // pause_track();
+        xEventGroupSetBits(spotify_event_group, SPOTIFY_CMD_PAUSE);
     }
 }
 
 static void spotify_next_cb(lv_event_t *e) {
     ESP_LOGI(TAG, "Spotify next cb");
-    next_track();
+    // next_track();
+    xEventGroupSetBits(spotify_event_group, SPOTIFY_CMD_NEXT);
 }
 
 static void spotify_prev_cb(lv_event_t *e) {
     ESP_LOGI(TAG, "Spotify prev cb");
-    previous_track();
+    // previous_track();
+    xEventGroupSetBits(spotify_event_group, SPOTIFY_CMD_PREV);
 }
 
 static void set_angle(void *obj, int32_t v) {
