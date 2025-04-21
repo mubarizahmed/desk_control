@@ -565,7 +565,7 @@ void createSpotifyWidget() {
     sp_cover_img = lv_img_create(sp_cover_rect);
     // lv_img_set_src(sp_cover_img, sp_img_dsc);
     lv_obj_set_style_bg_color(rect, UI_SPOTIFY_GREEN, 0);
-    lv_img_set_src(sp_cover_img, LV_SYMBOL_DUMMY "Cover Image");
+    lv_img_set_src(sp_cover_img, LV_SYMBOL_DUMMY "");
     lv_obj_set_style_img_recolor(sp_cover_img, UI_WHITE, 0);
     lv_obj_set_size(sp_cover_img, 64, 64);
     lv_obj_remove_border_paddin_scrollbar(sp_cover_img);

@@ -130,7 +130,7 @@ bool sp_exchange_code_refresh_token(const char *auth_code, const char *redirect_
              "grant_type=authorization_code&code=%s&redirect_uri=%s&client_id=%s&client_secret=%s",
              auth_code, redirect_uri, g_spotify_ctx.client_id, g_spotify_ctx.client_secret);
 
-    ESP_LOGI(TAG, "Refresh token POST data: %s", post_data);
+    ESP_LOGD(TAG, "Refresh token POST data: %s", post_data);
 
     // Clear the buffer before request
     memset(response_buffer, 0, MAX_HTTP_OUTPUT_BUFFER);
@@ -156,7 +156,7 @@ bool sp_exchange_code_refresh_token(const char *auth_code, const char *redirect_
         return false;
     }
 
-    ESP_LOGI(TAG, "Response: >>>%s<<<", response_buffer);
+    ESP_LOGD(TAG, "Response: >>>%s<<<", response_buffer);
 
     // Parse JSON response
     cJSON *root = cJSON_Parse(response_buffer);
@@ -177,17 +177,15 @@ bool sp_exchange_code_refresh_token(const char *auth_code, const char *redirect_
             g_spotify_ctx.access_token[sizeof(g_spotify_ctx.access_token) - 1] = '\0';
         }
 
-        ESP_LOGI(TAG, "Access Token: %s", g_spotify_ctx.access_token);
-        ESP_LOGI(TAG, "Refresh Token: %s", g_spotify_ctx.refresh_token);
-        ESP_LOGI(TAG, "Refresh Token Length: %zu", strlen(g_spotify_ctx.refresh_token));
+        ESP_LOGD(TAG, "Access Token: %s", g_spotify_ctx.access_token);
+        ESP_LOGD(TAG, "Refresh Token: %s", g_spotify_ctx.refresh_token);
+        ESP_LOGD(TAG, "Refresh Token Length: %zu", strlen(g_spotify_ctx.refresh_token));
 
         // Save the refresh token to NVS
         nvs_handle_t nvs_handle;
         esp_err_t err = nvs_open("storage", NVS_READWRITE, &nvs_handle);
         if (err == ESP_OK) {
 
-            // nvs_set_str(nvs_handle, "spotify_client_id", g_spotify_ctx.client_id);
-            // nvs_set_str(nvs_handle, "spotify_client_secret", g_spotify_ctx.client_secret);
             err = nvs_set_u16(nvs_handle, "sp_rt_size", (uint16_t)strlen(g_spotify_ctx.refresh_token));
             if (err != ESP_OK) {
                 ESP_LOGE(TAG, "Failed to set refresh token size: %s", esp_err_to_name(err));
@@ -199,9 +197,10 @@ bool sp_exchange_code_refresh_token(const char *auth_code, const char *redirect_
             }
             esp_err_t err_commit = nvs_commit(nvs_handle);
             if (err_commit != ESP_OK) {
+                // Crahes app??
                 // ESP_LOGE(TAG, "Failed to commit NVS: %s", esp_err_to_name(err_commit));
             } else {
-                ESP_LOGI(TAG, "Refresh token committed to NVS");
+                ESP_LOGD(TAG, "Refresh token committed to NVS");
             }
             nvs_close(nvs_handle);
             ESP_LOGI(TAG, "NVS handle closed successfully");
@@ -224,18 +223,16 @@ bool sp_exchange_code_refresh_token(const char *auth_code, const char *redirect_
             nvs_close(handle);
             // return;
         }
-        ESP_LOGI(TAG, "Refresh token size: %d", required_size);
+        ESP_LOGD(TAG, "Refresh token size: %d", required_size);
         nvs_close(handle);
 
         cJSON_Delete(root);
         esp_http_client_cleanup(client);
 
-#ifdef DEBUG
         // print heap information
         size_t free_heap = esp_get_free_heap_size();
         size_t min_free_heap = esp_get_minimum_free_heap_size();
-        ESP_LOGI(TAG, "sp_exchange_code_refresh_token heap: %zu bytes, Minimum free heap: %zu bytes", free_heap, min_free_heap);
-#endif
+        ESP_LOGD("MEMORY", "sp_exchange_code_refresh_token heap: %zu bytes, Minimum free heap: %zu bytes", free_heap, min_free_heap);
 
         return true;
     } else {
@@ -264,7 +261,7 @@ bool sp_fetch_access_token(SpotifyContext *ctx) {
              "grant_type=refresh_token&refresh_token=%s",
              ctx->refresh_token);
 
-    ESP_LOGI(TAG, "Get access token POST data: %s", post_data);
+    ESP_LOGD(TAG, "Get access token POST data: %s", post_data);
 
     memset(response_buffer, 0, MAX_HTTP_OUTPUT_BUFFER);
 
@@ -303,7 +300,7 @@ bool sp_fetch_access_token(SpotifyContext *ctx) {
     char auth_header[300];
     snprintf(auth_header, sizeof(auth_header), "Basic %s", encoded_auth);
 
-    ESP_LOGI(TAG, "Auth Header: %s", auth_header);
+    ESP_LOGD(TAG, "Auth Header: %s", auth_header);
 
     esp_http_client_set_header(client, "Content-Type", "application/x-www-form-urlencoded");
     esp_http_client_set_header(client, "Authorization", auth_header);
@@ -316,7 +313,7 @@ bool sp_fetch_access_token(SpotifyContext *ctx) {
         return false;
     }
 
-    ESP_LOGI(TAG, "Response: >>>%s<<<", response_buffer);
+    ESP_LOGD(TAG, "Response: >>>%s<<<", response_buffer);
 
     cJSON *root = cJSON_Parse(response_buffer);
     if (!root) {
@@ -337,9 +334,9 @@ bool sp_fetch_access_token(SpotifyContext *ctx) {
             ctx->refresh_token[sizeof(ctx->refresh_token) - 1] = '\0';
         }
 
-        ESP_LOGI(TAG, "Access Token: %s", ctx->access_token);
+        ESP_LOGD(TAG, "Access Token: %s", ctx->access_token);
         if (refresh_token && cJSON_IsString(refresh_token)) {
-            ESP_LOGI(TAG, "Updated Refresh Token: %s", ctx->refresh_token);
+            ESP_LOGD(TAG, "Updated Refresh Token: %s", ctx->refresh_token);
         }
 
         success = true;
@@ -347,11 +344,9 @@ bool sp_fetch_access_token(SpotifyContext *ctx) {
         ESP_LOGW("SPOTIFY", "No access token in response");
     }
 
-#ifdef DEBUG
     size_t free_heap = esp_get_free_heap_size();
     size_t min_free_heap = esp_get_minimum_free_heap_size();
-    ESP_LOGI(TAG, "sp_fetch_access_token heap: %zu bytes, Minimum free heap: %zu bytes", free_heap, min_free_heap);
-#endif
+    ESP_LOGD("MEMORY", "sp_fetch_access_token heap: %zu bytes, Minimum free heap: %zu bytes", free_heap, min_free_heap);
 
     cJSON_Delete(root);
     esp_http_client_cleanup(client);
@@ -377,7 +372,7 @@ void sp_get_auth(SpotifyContext *ctx) {
         ESP_LOGE(TAG, "Error (%s) getting refresh token size!", esp_err_to_name(err));
         nvs_close(handle);
     }
-    ESP_LOGI(TAG, "Refresh token size: %d", required_size);
+    ESP_LOGD(TAG, "Refresh token size: %d", required_size);
     if (required_size > 0) {
         size_t size = required_size + 1;
         ctx->refresh_token[0] = '\0';
@@ -387,7 +382,7 @@ void sp_get_auth(SpotifyContext *ctx) {
             nvs_close(handle);
             // return;
         }
-        ESP_LOGI(TAG, "Refresh token: %s", ctx->refresh_token);
+        ESP_LOGD(TAG, "Refresh token: %s", ctx->refresh_token);
         nvs_close(handle);
     } else {
         ESP_LOGE(TAG, "No refresh token available!");
@@ -406,7 +401,7 @@ void sp_get_auth(SpotifyContext *ctx) {
 
                 snprintf(ctx->redirect_uri, sizeof(redirect_uri), "https://%d.%d.%d.%d/", IP2STR(&ip_addr));
 
-                ESP_LOGI(TAG, "got ip:" IPSTR, IP2STR(&ip_addr));
+                ESP_LOGD(TAG, "got ip:" IPSTR, IP2STR(&ip_addr));
                 ESP_LOGI(TAG, "Go to this url in your Browser to login to spotify or enter your credentials: %s\n", ctx->redirect_uri);
                 // snprintf(redirect_uri, sizeof(redirect_uri), "http://"IPSTR"/", "got ip:" IPSTR, IP2STR();
                 // ESP_LOGI(TAG, "Go to this url in your Browser to login to spotify or enter your credentials: http://%s/\n", WiFi.localIP().toString().c_str());
@@ -416,7 +411,7 @@ void sp_get_auth(SpotifyContext *ctx) {
             // heap info
             size_t free_heap = esp_get_free_heap_size();
             size_t min_free_heap = esp_get_minimum_free_heap_size();
-            ESP_LOGE("WEBSERVER", "Start webserver heap: %zu bytes, Minimum free heap: %zu bytes", free_heap, min_free_heap);
+            ESP_LOGE("MEMORY", "Start webserver heap: %zu bytes, Minimum free heap: %zu bytes", free_heap, min_free_heap);
 
             sp_start_webserver(ctx);
         }
@@ -448,10 +443,10 @@ esp_err_t sp_handle_root_get(httpd_req_t *req) {
     size_t buf_len;
 
     buf_len = httpd_req_get_hdr_value_len(req, "User-Agent") + 1;
-    ESP_LOGI(TAG, "User-Agent length: %d", buf_len);
+    ESP_LOGD(TAG, "User-Agent length: %d", buf_len);
     if (buf_len > 1) {
         httpd_req_get_hdr_value_str(req, "User-Agent", buf, sizeof(buf));
-        ESP_LOGI(TAG, "User-Agent: %s", buf);
+        ESP_LOGD(TAG, "User-Agent: %s", buf);
     }
 
     // Access context via `req->user_ctx`
@@ -460,12 +455,11 @@ esp_err_t sp_handle_root_get(httpd_req_t *req) {
     httpd_resp_set_type(req, "text/html");
     httpd_resp_send(req, credentials_input, HTTPD_RESP_USE_STRLEN);
 
-#ifdef DEBUG
     // print heap information
     size_t free_heap = esp_get_free_heap_size();
     size_t min_free_heap = esp_get_minimum_free_heap_size();
-    ESP_LOGI(TAG, "root_get_handler heap: %zu bytes, Minimum free heap: %zu bytes", free_heap, min_free_heap);
-#endif
+    ESP_LOGD("MEMORY", "root_get_handler heap: %zu bytes, Minimum free heap: %zu bytes", free_heap, min_free_heap);
+
     return ESP_OK;
 }
 
@@ -502,7 +496,7 @@ esp_err_t sp_handle_callback(httpd_req_t *req) {
         if (httpd_query_key_value(query, "code", code, sizeof(code)) == ESP_OK) {
             strncpy(ctx->auth_code, code, sizeof(ctx->auth_code));
             if (ctx->debug_on) {
-                ESP_LOGI(TAG, "Auth Code: %s", ctx->auth_code);
+                ESP_LOGD(TAG, "Auth Code: %s", ctx->auth_code);
             }
 
             // Get new refresh token from Spotify
@@ -520,7 +514,7 @@ esp_err_t sp_handle_callback(httpd_req_t *req) {
                 // heap info
                 size_t free_heap = esp_get_free_heap_size();
                 size_t min_free_heap = esp_get_minimum_free_heap_size();
-                ESP_LOGE(TAG, "stop webserver heap: %zu bytes, Minimum free heap: %zu bytes", free_heap, min_free_heap);
+                ESP_LOGE("MEMORY", "stop webserver heap: %zu bytes, Minimum free heap: %zu bytes", free_heap, min_free_heap);
                 httpd_stop(ctx->server);
 
             } else {
@@ -547,12 +541,10 @@ esp_err_t sp_handle_callback(httpd_req_t *req) {
         return ESP_OK;
     }
 
-#ifdef DEBUG
     // print heap information
     size_t free_heap = esp_get_free_heap_size();
     size_t min_free_heap = esp_get_minimum_free_heap_size();
-    ESP_LOGI(TAG, "callback_handler heap: %zu bytes, Minimum free heap: %zu bytes", free_heap, min_free_heap);
-#endif
+    ESP_LOGD("MEMORY", "callback_handler heap: %zu bytes, Minimum free heap: %zu bytes", free_heap, min_free_heap);
 }
 
 /**
@@ -701,14 +693,14 @@ esp_err_t sp_get_current_playback(SpotifyContext *ctx, CurrentlyPlayingData *dat
         goto cleanup;
     }
 
-    ESP_LOGI(TAG, "Authorization: %s", auth_header);
+    ESP_LOGD(TAG, "Authorization: %s", auth_header);
 
     esp_err_t err = esp_http_client_perform(client);
 
     if (err == ESP_OK) {
         int status = esp_http_client_get_status_code(client);
         if (status == 200) {
-            ESP_LOGI(TAG, "Current playback: %s", response_buffer);
+            ESP_LOGD(TAG, "Current playback: %s", response_buffer);
             // Parse the response and extract relevant information
             cJSON *json = cJSON_Parse(response_buffer);
             if (json) {
@@ -748,7 +740,7 @@ esp_err_t sp_get_current_playback(SpotifyContext *ctx, CurrentlyPlayingData *dat
                             if (images) {
                                 int artist_count = cJSON_GetArraySize(images);
 
-                                ESP_LOGI(TAG, "Images in the response %d", artist_count);
+                                ESP_LOGD(TAG, "Images in the response %d", artist_count);
 
                                 const cJSON *image = cJSON_GetArrayItem(images, 2);
                                 if (image) {
@@ -787,7 +779,7 @@ cleanup:
     // heap information
     size_t free_heap = esp_get_free_heap_size();
     size_t min_free_heap = esp_get_minimum_free_heap_size();
-    ESP_LOGI(TAG, "sp_get_current_playback heap: %zu bytes, Minimum free heap: %zu bytes", free_heap, min_free_heap);
+    ESP_LOGD("MEMORY", "sp_get_current_playback heap: %zu bytes, Minimum free heap: %zu bytes", free_heap, min_free_heap);
 
     esp_http_client_cleanup(client);
     return ret;
@@ -824,8 +816,8 @@ void sp_get_image(const char *url, char *out_buffer, size_t buffer_size, int64_t
         if (status == 200) {
 
             *out_image_size = esp_http_client_get_content_length(client);
-            ESP_LOGI(TAG, "Received image data (%lld bytes)", esp_http_client_get_content_length(client));
-            ESP_LOG_BUFFER_HEXDUMP(TAG, out_buffer, 32, ESP_LOG_INFO); // Log first 32 bytes for debugging
+            ESP_LOGD(TAG, "Received image data (%lld bytes)", esp_http_client_get_content_length(client));
+            ESP_LOG_BUFFER_HEXDUMP(TAG, out_buffer, 32, ESP_LOG_DEBUG); // Log first 32 bytes for debugging
 
         } else {
             ESP_LOGE(TAG, "Error: %d", status);
@@ -859,11 +851,11 @@ void sp_update_current_playback(SpotifyContext *ctx, int32_t *out_delay_ms) {
 
         sp_get_current_playback(&g_spotify_ctx, data);
 
-        ESP_LOGI(TAG, "Currently playing: %s by %s", data->name, data->artists);
-        ESP_LOGI(TAG, "Duration: %ld ms, Progress: %ld ms", data->duration_ms, data->progress_ms);
-        ESP_LOGI(TAG, "Album: %s", data->album_name);
-        ESP_LOGI(TAG, "Album Image URL: %s", data->album_image_url);
-        ESP_LOGI(TAG, "Is Playing: %s", data->is_playing ? "true" : "false");
+        ESP_LOGD(TAG, "Currently playing: %s by %s", data->name, data->artists);
+        ESP_LOGD(TAG, "Duration: %ld ms, Progress: %ld ms", data->duration_ms, data->progress_ms);
+        ESP_LOGD(TAG, "Album: %s", data->album_name);
+        ESP_LOGD(TAG, "Album Image URL: %s", data->album_image_url);
+        ESP_LOGD(TAG, "Is Playing: %s", data->is_playing ? "true" : "false");
 
         *out_delay_ms = data->duration_ms - data->progress_ms + 5000; // Set delay to the remaining duration of the track
     }
@@ -912,7 +904,7 @@ void sp_update_current_playback(SpotifyContext *ctx, int32_t *out_delay_ms) {
         // heap information
         size_t free_heap = esp_get_free_heap_size();
         size_t min_free_heap = esp_get_minimum_free_heap_size();
-        ESP_LOGI(TAG, "sp_get_image init heap: %zu bytes, Minimum free heap: %zu bytes", free_heap, min_free_heap);
+        ESP_LOGD("MEMORY", "sp_get_image init heap: %zu bytes, Minimum free heap: %zu bytes", free_heap, min_free_heap);
 
         sp_get_image(data->album_image_url, image_buffer, 4096, &image_size);
 
@@ -941,9 +933,9 @@ void sp_update_current_playback(SpotifyContext *ctx, int32_t *out_delay_ms) {
             vTaskDelay(pdMS_TO_TICKS(10000)); // 10 seconds delay
             return;
         }
-        ESP_LOGI(TAG, "JPEG decode done");
-        ESP_LOG_BUFFER_HEXDUMP(TAG, out_img_buf, 32, ESP_LOG_INFO);
-        ESP_LOGI(TAG, "JPEG decode size %d x %d", outimg.width, outimg.height);
+        ESP_LOGD(TAG, "JPEG decode done");
+        ESP_LOG_BUFFER_HEXDUMP(TAG, out_img_buf, 32, ESP_LOG_DEBUG);
+        ESP_LOGD(TAG, "JPEG decode size %d x %d", outimg.width, outimg.height);
 
         free(image_buffer); // Free the image buffer after use
 
@@ -992,7 +984,7 @@ esp_err_t sp_next_track() {
         goto cleanup;
     }
 
-    ESP_LOGI(TAG, "Authorization: %s", auth_header);
+    ESP_LOGD(TAG, "Authorization: %s", auth_header);
 
     esp_err_t err = esp_http_client_perform(client);
     if (err == ESP_OK) {
@@ -1052,7 +1044,7 @@ esp_err_t sp_previous_track() {
         goto cleanup;
     }
 
-    ESP_LOGI(TAG, "Authorization: %s", auth_header);
+    ESP_LOGD(TAG, "Authorization: %s", auth_header);
 
     esp_err_t err = esp_http_client_perform(client);
     if (err == ESP_OK) {
@@ -1112,7 +1104,7 @@ esp_err_t sp_pause_track() {
         goto cleanup;
     }
 
-    ESP_LOGI(TAG, "Authorization: %s", auth_header);
+    ESP_LOGD(TAG, "Authorization: %s", auth_header);
 
     esp_err_t err = esp_http_client_perform(client);
     if (err == ESP_OK) {
@@ -1179,7 +1171,7 @@ esp_err_t sp_resume_track() {
         goto cleanup;
     }
 
-    ESP_LOGI(TAG, "Authorization: %s", auth_header);
+    ESP_LOGD(TAG, "Authorization: %s", auth_header);
 
     // Set Content-Type header
     if (esp_http_client_set_header(client, "Content-Type", "application/json") != ESP_OK) {
@@ -1345,32 +1337,28 @@ void spotify_task(void *pvParameters) {
         );
 
         if (uxBits & SPOTIFY_CMD_RESUME) {
-            ESP_LOGI(TAG, "Resume command received");
+            ESP_LOGD(TAG, "Resume command received");
             sp_pause_track();
             vTaskDelay(pdMS_TO_TICKS(5000)); // 5 second delay
         } else if (uxBits & SPOTIFY_CMD_PAUSE) {
-            ESP_LOGI(TAG, "Pause command received");
+            ESP_LOGD(TAG, "Pause command received");
             sp_pause_track();
             vTaskDelay(pdMS_TO_TICKS(5000)); // 5 second delay
         } else if (uxBits & SPOTIFY_CMD_PREV) {
-            ESP_LOGI(TAG, "Previous command received");
+            ESP_LOGD(TAG, "Previous command received");
             sp_previous_track();
             vTaskDelay(pdMS_TO_TICKS(5000)); // 5 second delay
         } else if (uxBits & SPOTIFY_CMD_NEXT) {
-            ESP_LOGI(TAG, "Next command received");
+            ESP_LOGD(TAG, "Next command received");
             sp_next_track();
             vTaskDelay(pdMS_TO_TICKS(5000)); // 5 second delay
         }
         sp_update_current_playback(&g_spotify_ctx, &delay);
 
-#ifdef DEBUG
-        delay = 45000; // Reset delay to 45 seconds
-#endif
-
         // heap information
         size_t free_heap = esp_get_free_heap_size();
         size_t min_free_heap = esp_get_minimum_free_heap_size();
-        ESP_LOGI(TAG, "get_image init heap: %zu bytes, Minimum free heap: %zu bytes", free_heap, min_free_heap);
+        ESP_LOGD("MEMORY", "get_image init heap: %zu bytes, Minimum free heap: %zu bytes", free_heap, min_free_heap);
 
         // task and heap information
         // size_t free_heap = esp_get_free_heap_size();
