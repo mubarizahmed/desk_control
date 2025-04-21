@@ -431,26 +431,18 @@ bool get_refresh_token(const char *auth_code, const char *redirect_uri) {
 }
 
 bool get_access_token(SpotifyContext *ctx) {
-    // This function should be implemented to get the access token from Spotify API
-    // using the client_id, client_secret, and refresh_token.
-    // The access token should be stored in ctx->access_token.
-
-    // check if refresh token is empty
     if (!is_refresh_token(ctx)) {
         ESP_LOGE("SPOTIFY", "No refresh token available");
         return false;
     }
 
     char post_data[512];
-
-    // Construct POST data
     snprintf(post_data, sizeof(post_data),
              "grant_type=refresh_token&refresh_token=%s",
-             g_spotify_ctx.refresh_token);
+             ctx->refresh_token);
 
     ESP_LOGI(TAG, "Get access token POST data: %s", post_data);
 
-    // Clear the buffer before request
     memset(response_buffer, 0, MAX_HTTP_OUTPUT_BUFFER);
 
     esp_http_client_config_t config = {
@@ -463,8 +455,35 @@ bool get_access_token(SpotifyContext *ctx) {
     };
 
     esp_http_client_handle_t client = esp_http_client_init(&config);
+    if (!client) {
+        ESP_LOGE("SPOTIFY", "Failed to initialize HTTP client");
+        return false;
+    }
+
+    char to_encode[205];
+    snprintf(to_encode, sizeof(to_encode), "%s:%s", ctx->client_id, ctx->client_secret);
+
+    // Calculate the output size needed for Base64 (Base64 expands by ~4/3)
+    char encoded_auth[256]; // Ensure it's big enough for Base64
+    size_t out_len = 0;
+
+    int ret = mbedtls_base64_encode(
+        (unsigned char *)encoded_auth, sizeof(encoded_auth), &out_len,
+        (const unsigned char *)to_encode, strlen(to_encode));
+
+    if (ret != 0) {
+        ESP_LOGE(TAG, "Base64 encoding failed with error: %d", ret);
+        return false;
+    }
+
+    encoded_auth[out_len] = '\0'; // Null-terminate the string
+    char auth_header[300];
+    snprintf(auth_header, sizeof(auth_header), "Basic %s", encoded_auth);
+
+    ESP_LOGI(TAG, "Auth Header: %s", auth_header);
 
     esp_http_client_set_header(client, "Content-Type", "application/x-www-form-urlencoded");
+    esp_http_client_set_header(client, "Authorization", auth_header);
     esp_http_client_set_post_field(client, post_data, strlen(post_data));
 
     esp_err_t err = esp_http_client_perform(client);
@@ -476,34 +495,36 @@ bool get_access_token(SpotifyContext *ctx) {
 
     ESP_LOGI(TAG, "Response: >>>%s<<<", response_buffer);
 
-    // Parse JSON response
     cJSON *root = cJSON_Parse(response_buffer);
     if (!root) {
         ESP_LOGE("SPOTIFY", "Failed to parse JSON");
         esp_http_client_cleanup(client);
         return false;
     }
+
+    bool success = false;
     cJSON *access_token = cJSON_GetObjectItem(root, "access_token");
     if (access_token && cJSON_IsString(access_token)) {
-        strncpy(g_spotify_ctx.access_token, access_token->valuestring, sizeof(g_spotify_ctx.access_token) - 1);
-        g_spotify_ctx.access_token[sizeof(g_spotify_ctx.access_token) - 1] = '\0';
-    }
-
-    ESP_LOGI(TAG, "Access Token: %s", g_spotify_ctx.access_token);
-
-    cJSON_Delete(root);
-    esp_http_client_cleanup(client);
+        strncpy(ctx->access_token, access_token->valuestring, sizeof(ctx->access_token) - 1);
+        ctx->access_token[sizeof(ctx->access_token) - 1] = '\0';
 
         cJSON *refresh_token = cJSON_GetObjectItem(root, "refresh_token");
         if (refresh_token && cJSON_IsString(refresh_token)) {
-        strncpy(g_spotify_ctx.refresh_token, refresh_token->valuestring, sizeof(g_spotify_ctx.refresh_token) - 1);
-        g_spotify_ctx.refresh_token[sizeof(g_spotify_ctx.refresh_token) - 1] = '\0';
+            strncpy(ctx->refresh_token, refresh_token->valuestring, sizeof(ctx->refresh_token) - 1);
+            ctx->refresh_token[sizeof(ctx->refresh_token) - 1] = '\0';
+        }
 
-        ESP_LOGI(TAG, "Access Token: %s", g_spotify_ctx.access_token);
-        ESP_LOGI(TAG, "Refresh Token: %s", g_spotify_ctx.refresh_token);
+        ESP_LOGI(TAG, "Access Token: %s", ctx->access_token);
+        if (refresh_token && cJSON_IsString(refresh_token)) {
+            ESP_LOGI(TAG, "Updated Refresh Token: %s", ctx->refresh_token);
+        }
+
+        success = true;
+    } else {
+        ESP_LOGW("SPOTIFY", "No access token in response");
+    }
 
 #ifdef DEBUG
-        // print heap information
     size_t free_heap = esp_get_free_heap_size();
     size_t min_free_heap = esp_get_minimum_free_heap_size();
     ESP_LOGI(TAG, "get_access_token heap: %zu bytes, Minimum free heap: %zu bytes", free_heap, min_free_heap);
@@ -511,20 +532,7 @@ bool get_access_token(SpotifyContext *ctx) {
 
     cJSON_Delete(root);
     esp_http_client_cleanup(client);
-        return true;
-    } else {
-        ESP_LOGW("SPOTIFY", "No refresh token in response");
-    }
-
-    cJSON_Delete(root);
-    esp_http_client_cleanup(client);
-    return false;
-
-    return true;
-
-    cJSON_Delete(root);
-    esp_http_client_cleanup(client);
-    return false;
+    return success;
 }
 
 esp_err_t root_get_handler(httpd_req_t *req) {
