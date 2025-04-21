@@ -24,6 +24,7 @@
 #include "esp_event.h"
 #include "pin_definitions.h"
 #include "pomodoro.h"
+#include "spotify_serv.h"
 #include "time_serv.h"
 #include "ui.h"
 #include "weather_serv.h"
@@ -41,11 +42,25 @@ void app_main(void) {
 
     // Initialize NVS
     esp_err_t ret = nvs_flash_init();
+
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        ESP_LOGE(TAG, "NVS flash init failed: %s", esp_err_to_name(ret));
+        ESP_LOGI(TAG, "Erasing NVS flash and reinitializing");
         ESP_ERROR_CHECK(nvs_flash_erase());
         ret = nvs_flash_init();
     }
     ESP_ERROR_CHECK(ret);
+
+    // check if NVS is initialized
+    nvs_handle_t my_handle;
+    ret = nvs_open("storage", NVS_READWRITE, &my_handle);
+    if (ret != ESP_OK) {
+        printf("Error (%s) opening NVS handle!\n", esp_err_to_name(ret));
+        ESP_ERROR_CHECK(ret);
+    }
+    ESP_LOGI(TAG, "NVS handle opened successfully");
+    nvs_close(my_handle);
+
 
     // Initialize WiFi
     if (CONFIG_LOG_MAXIMUM_LEVEL > CONFIG_LOG_DEFAULT_LEVEL) {

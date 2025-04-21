@@ -38,6 +38,12 @@ typedef struct {
 } CurrentlyPlayingData;
 
 extern SpotifyContext g_spotify_ctx;
+extern EventGroupHandle_t spotify_event_group;
+
+#define SPOTIFY_CMD_RESUME BIT0
+#define SPOTIFY_CMD_PAUSE BIT1
+#define SPOTIFY_CMD_PREV BIT2
+#define SPOTIFY_CMD_NEXT BIT3
 
 void spotify_task(void *pvParameters);
 esp_err_t next_track();

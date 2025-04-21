@@ -16,6 +16,7 @@
 #include "esp_wifi.h"
 #include "jpeg_decoder.h"
 #include "mbedtls/base64.h"
+#include "nvs_flash.h"
 #include "string.h"
 #include <sys/param.h>
 
@@ -36,6 +37,8 @@ static const char *TAG = "SPOTIFY_SERV";
 
 #define MAX_HTTP_OUTPUT_BUFFER 4024
 static char response_buffer[MAX_HTTP_OUTPUT_BUFFER];
+
+EventGroupHandle_t spotify_event_group;
 
 SpotifyContext g_spotify_ctx = {
     .client_id = SPOTIFY_CLIENT_ID,
@@ -142,6 +145,38 @@ void get_auth(SpotifyContext *ctx) {
     // This function should be implemented to get the access token from Spotify API
     // using the client_id, client_secret, and refresh_token.
     // The access token should be stored in ctx->access_token.
+    // load from nvs
+    nvs_handle_t handle;
+    esp_err_t err = nvs_open("storage", NVS_READONLY, &handle);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Error (%s) opening NVS handle!", esp_err_to_name(err));
+        // return;
+    }
+    uint16_t required_size = 0;
+    err = nvs_get_u16(handle, "sp_rt_size", &required_size);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Error (%s) getting refresh token size!", esp_err_to_name(err));
+        nvs_close(handle);
+        // return;
+    }
+    ESP_LOGI(TAG, "Refresh token size: %d", required_size);
+    // nvs_close(handle);
+    if (required_size > 0) {
+        size_t size = required_size + 1;
+        ctx->refresh_token[0] = '\0';
+        err = nvs_get_str(handle, "sp_rt", ctx->refresh_token, &size);
+        if (err != ESP_OK) {
+            ESP_LOGE(TAG, "Error (%s) getting refresh token!", esp_err_to_name(err));
+            nvs_close(handle);
+            // return;
+        }
+        ESP_LOGI(TAG, "Refresh token: %s", ctx->refresh_token);
+        nvs_close(handle);
+    } else {
+        ESP_LOGE(TAG, "No refresh token available!");
+        nvs_close(handle);
+        // return;
+    }
 
     // check if refresh token is empty
     if (!is_refresh_token(ctx)) {
@@ -327,6 +362,53 @@ bool get_refresh_token(const char *auth_code, const char *redirect_uri) {
 
         ESP_LOGI(TAG, "Access Token: %s", g_spotify_ctx.access_token);
         ESP_LOGI(TAG, "Refresh Token: %s", g_spotify_ctx.refresh_token);
+        ESP_LOGI(TAG, "Refresh Token Length: %zu", strlen(g_spotify_ctx.refresh_token));
+
+        // Save the refresh token to NVS
+        nvs_handle_t nvs_handle;
+        esp_err_t err = nvs_open("storage", NVS_READWRITE, &nvs_handle);
+        if (err == ESP_OK) {
+
+            // nvs_set_str(nvs_handle, "spotify_client_id", g_spotify_ctx.client_id);
+            // nvs_set_str(nvs_handle, "spotify_client_secret", g_spotify_ctx.client_secret);
+            err = nvs_set_u16(nvs_handle, "sp_rt_size", (uint16_t)strlen(g_spotify_ctx.refresh_token));
+            if (err != ESP_OK) {
+                ESP_LOGE(TAG, "Failed to set refresh token size: %s", esp_err_to_name(err));
+            }
+
+            err = nvs_set_str(nvs_handle, "sp_rt", g_spotify_ctx.refresh_token);
+            if (err != ESP_OK) {
+                ESP_LOGE(TAG, "Failed to set refresh token string: %s", esp_err_to_name(err));
+            }
+            esp_err_t err_commit = nvs_commit(nvs_handle);
+            if (err_commit != ESP_OK) {
+                // ESP_LOGE(TAG, "Failed to commit NVS: %s", esp_err_to_name(err_commit));
+            } else {
+                ESP_LOGI(TAG, "Refresh token committed to NVS");
+            }
+            nvs_close(nvs_handle);
+            ESP_LOGI(TAG, "NVS handle closed successfully");
+        } else {
+            ESP_LOGE(TAG, "Failed to open NVS handle: %s", esp_err_to_name(err));
+        }
+
+        // read the refresh token from NVS
+        // load from nvs
+        nvs_handle_t handle;
+        err = nvs_open("storage", NVS_READONLY, &handle);
+        if (err != ESP_OK) {
+            ESP_LOGE(TAG, "Error (%s) opening NVS handle!", esp_err_to_name(err));
+            // return;
+        }
+        uint16_t required_size = 0;
+        err = nvs_get_u16(handle, "sp_rt_size", &required_size);
+        if (err != ESP_OK) {
+            ESP_LOGE(TAG, "Error (%s) getting refresh token size!", esp_err_to_name(err));
+            nvs_close(handle);
+            // return;
+        }
+        ESP_LOGI(TAG, "Refresh token size: %d", required_size);
+        nvs_close(handle);
 
         cJSON_Delete(root);
         esp_http_client_cleanup(client);
@@ -412,8 +494,8 @@ bool get_access_token(SpotifyContext *ctx) {
     cJSON_Delete(root);
     esp_http_client_cleanup(client);
 
-    cJSON *refresh_token = cJSON_GetObjectItem(root, "refresh_token");
-    if (refresh_token && cJSON_IsString(refresh_token)) {
+        cJSON *refresh_token = cJSON_GetObjectItem(root, "refresh_token");
+        if (refresh_token && cJSON_IsString(refresh_token)) {
         strncpy(g_spotify_ctx.refresh_token, refresh_token->valuestring, sizeof(g_spotify_ctx.refresh_token) - 1);
         g_spotify_ctx.refresh_token[sizeof(g_spotify_ctx.refresh_token) - 1] = '\0';
 
@@ -422,13 +504,13 @@ bool get_access_token(SpotifyContext *ctx) {
 
 #ifdef DEBUG
         // print heap information
-        size_t free_heap = esp_get_free_heap_size();
-        size_t min_free_heap = esp_get_minimum_free_heap_size();
-        ESP_LOGI(TAG, "get_access_token heap: %zu bytes, Minimum free heap: %zu bytes", free_heap, min_free_heap);
+    size_t free_heap = esp_get_free_heap_size();
+    size_t min_free_heap = esp_get_minimum_free_heap_size();
+    ESP_LOGI(TAG, "get_access_token heap: %zu bytes, Minimum free heap: %zu bytes", free_heap, min_free_heap);
 #endif
 
-        cJSON_Delete(root);
-        esp_http_client_cleanup(client);
+    cJSON_Delete(root);
+    esp_http_client_cleanup(client);
         return true;
     } else {
         ESP_LOGW("SPOTIFY", "No refresh token in response");
