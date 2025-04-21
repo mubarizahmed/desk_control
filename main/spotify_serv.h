@@ -10,8 +10,14 @@
 #ifndef SPOTIFY_SERV_H
 #define SPOTIFY_SERV_H
 
+/* ------------------------------------------------------ */
+/*                        INCLUDES                        */
+/* ------------------------------------------------------ */
 #include "esp_http_server.h"
 
+/* ------------------------------------------------------ */
+/*                        TYPEDEFS                        */
+/* ------------------------------------------------------ */
 typedef struct {
     char client_id[100];
     char client_secret[100];
@@ -37,18 +43,23 @@ typedef struct {
     bool is_playing;
 } CurrentlyPlayingData;
 
+/* ------------------------------------------------------ */
+/*                    PUBLIC VARIABLES                    */
+/* ------------------------------------------------------ */
 extern SpotifyContext g_spotify_ctx;
 extern EventGroupHandle_t spotify_event_group;
 
+/* ------------------------------------------------------ */
+/*                      PUBLIC MACROS                     */
+/* ------------------------------------------------------ */
 #define SPOTIFY_CMD_RESUME BIT0
 #define SPOTIFY_CMD_PAUSE BIT1
 #define SPOTIFY_CMD_PREV BIT2
 #define SPOTIFY_CMD_NEXT BIT3
 
+/* ------------------------------------------------------ */
+/*                    PUBLIC FUNCTIONS                    */
+/* ------------------------------------------------------ */
 void spotify_task(void *pvParameters);
-esp_err_t next_track();
-esp_err_t previous_track();
-esp_err_t resume_track();
-esp_err_t pause_track();
 
 #endif /* SPOTIFY_SERV_H */

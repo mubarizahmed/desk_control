@@ -7,6 +7,9 @@
  *
  */
 
+/* ------------------------------------------------------ */
+/*                        INCLUDES                        */
+/* ------------------------------------------------------ */
 #include "cJSON.h"
 #include "esp_crt_bundle.h"
 #include "esp_err.h"
@@ -23,19 +26,20 @@
 #include "display_manager.h"
 #include "secret_conf.h"
 #include "spotify_serv.h"
+#include "spotify_web.h"
 #include "ui.h"
 #include "wifi_manager.h"
 
+/* ------------------------------------------------------ */
+/*                     CONFIG MACROS                      */
+/* ------------------------------------------------------ */
+#define MAX_HTTP_OUTPUT_BUFFER 4024
+
+/* ------------------------------------------------------ */
+/*                    PRIVATE VARIABLES                   */
+/* ------------------------------------------------------ */
 static const char *TAG = "SPOTIFY_SERV";
 
-#define DEBUG 1
-
-// char g_refresh_token[300] = "";
-// char g_client_id[100] = CLIENT_ID;
-// char g_client_secret[100] = CLIENT_SECRET;
-// uint16_t g_port = 80;
-
-#define MAX_HTTP_OUTPUT_BUFFER 4024
 static char response_buffer[MAX_HTTP_OUTPUT_BUFFER];
 
 EventGroupHandle_t spotify_event_group;
@@ -55,257 +59,70 @@ SpotifyContext g_spotify_ctx = {
 
 const char *spotify_scopes = "user-read-currently-playing user-modify-playback-state";
 
-// static const char *url_play = "https://api.spotify.com/v1/me/player/pause";
-
 extern const uint8_t server_cert_pem_start[] asm("_binary_server_cert_pem_start");
 extern const uint8_t server_cert_pem_end[] asm("_binary_server_cert_pem_end");
 extern const uint8_t server_key_pem_start[] asm("_binary_server_key_pem_start");
 extern const uint8_t server_key_pem_end[] asm("_binary_server_key_pem_end");
 
-const char credentials_input[] =
-    "<HTML>"
-    "<HEAD>"
-    "<TITLE>Enter Credentials</TITLE>"
-    "</HEAD>"
-    "<BODY>"
-    "<h1>Enter your Credentials</h1>"
-    "<p>If you don't have a refresh token leave empty</p>"
-    "<form action=\"/get\">"
-    "Client ID: <input type=\"text\" name=\"id\">"
-    "<p></p>"
-    "Client Secret: <input type=\"text\" name=\"secret\">"
-    "<p></p>"
-    "Refreshtoken: <input type=\"text\" name=\"token\">"
-    "<input type=\"submit\" value=\"Submit\">"
-    "</form>"
-    "</BODY>"
-    "</HTML>";
+/* ------------------------------------------------------ */
+/*              PRIVATE FUNCTION DECLARATIONS             */
+/* ------------------------------------------------------ */
+/* ------------------- Authentication ------------------- */
+bool sp_is_authorized(const SpotifyContext *ctx);
+bool sp_has_refresh_token(const SpotifyContext *ctx);
+bool sp_exchange_code_refresh_token(const char *auth_code, const char *redirect_uri);
+bool sp_fetch_access_token(SpotifyContext *ctx);
+void sp_get_auth(SpotifyContext *ctx);
+/* ---------------------- Webserver --------------------- */
+esp_err_t sp_handle_root_get(httpd_req_t *req);
+esp_err_t sp_handle_callback(httpd_req_t *req);
+esp_err_t sp_handle_get(httpd_req_t *req);
+esp_err_t sp_start_webserver(SpotifyContext *ctx);
+/* -------------------- Playback API -------------------- */
+esp_err_t sp_get_current_playback(SpotifyContext *ctx, CurrentlyPlayingData *data);
+void sp_get_image(const char *url, char *out_buffer, size_t buffer_size, int64_t *out_image_size);
+void sp_update_current_playback(SpotifyContext *ctx, int32_t *out_delay_ms);
+esp_err_t sp_next_track();
+esp_err_t sp_previous_track();
+esp_err_t sp_resume_track();
+esp_err_t sp_pause_track();
+/* ----------------------- Utility ---------------------- */
+esp_err_t sp_http_event_handler(esp_http_client_event_t *evt);
 
-const char login_page_template[] =
-    "<HTML>"
-    "<HEAD>"
-    "<TITLE>ESP Spotify Login</TITLE>"
-    "</HEAD>"
-    "<BODY>"
-    "<CENTER>"
-    "<h1>Login to Spotify</h1>"
-    "<p>Click the link below to login to Spotify</p>"
-    "<a href=\"https://accounts.spotify.com/authorize?client_id=%s&response_type=code&redirect_uri=%s&scope=user-read-currently-playing user-modify-playback-state\">Login</a>"
-    "</CENTER>"
-    "</BODY>"
-    "</HTML>";
-
-const char *_spotify_root_ca =
-    "-----BEGIN CERTIFICATE-----\n"
-    "MIIEyDCCA7CgAwIBAgIQDPW9BitWAvR6uFAsI8zwZjANBgkqhkiG9w0BAQsFADBh\n"
-    "MQswCQYDVQQGEwJVUzEVMBMGA1UEChMMRGlnaUNlcnQgSW5jMRkwFwYDVQQLExB3\n"
-    "d3cuZGlnaWNlcnQuY29tMSAwHgYDVQQDExdEaWdpQ2VydCBHbG9iYWwgUm9vdCBH\n"
-    "MjAeFw0yMTAzMzAwMDAwMDBaFw0zMTAzMjkyMzU5NTlaMFkxCzAJBgNVBAYTAlVT\n"
-    "MRUwEwYDVQQKEwxEaWdpQ2VydCBJbmMxMzAxBgNVBAMTKkRpZ2lDZXJ0IEdsb2Jh\n"
-    "bCBHMiBUTFMgUlNBIFNIQTI1NiAyMDIwIENBMTCCASIwDQYJKoZIhvcNAQEBBQAD\n"
-    "ggEPADCCAQoCggEBAMz3EGJPprtjb+2QUlbFbSd7ehJWivH0+dbn4Y+9lavyYEEV\n"
-    "cNsSAPonCrVXOFt9slGTcZUOakGUWzUb+nv6u8W+JDD+Vu/E832X4xT1FE3LpxDy\n"
-    "FuqrIvAxIhFhaZAmunjZlx/jfWardUSVc8is/+9dCopZQ+GssjoP80j812s3wWPc\n"
-    "3kbW20X+fSP9kOhRBx5Ro1/tSUZUfyyIxfQTnJcVPAPooTncaQwywa8WV0yUR0J8\n"
-    "osicfebUTVSvQpmowQTCd5zWSOTOEeAqgJnwQ3DPP3Zr0UxJqyRewg2C/Uaoq2yT\n"
-    "zGJSQnWS+Jr6Xl6ysGHlHx+5fwmY6D36g39HaaECAwEAAaOCAYIwggF+MBIGA1Ud\n"
-    "EwEB/wQIMAYBAf8CAQAwHQYDVR0OBBYEFHSFgMBmx9833s+9KTeqAx2+7c0XMB8G\n"
-    "A1UdIwQYMBaAFE4iVCAYlebjbuYP+vq5Eu0GF485MA4GA1UdDwEB/wQEAwIBhjAd\n"
-    "BgNVHSUEFjAUBggrBgEFBQcDAQYIKwYBBQUHAwIwdgYIKwYBBQUHAQEEajBoMCQG\n"
-    "CCsGAQUFBzABhhhodHRwOi8vb2NzcC5kaWdpY2VydC5jb20wQAYIKwYBBQUHMAKG\n"
-    "NGh0dHA6Ly9jYWNlcnRzLmRpZ2ljZXJ0LmNvbS9EaWdpQ2VydEdsb2JhbFJvb3RH\n"
-    "Mi5jcnQwQgYDVR0fBDswOTA3oDWgM4YxaHR0cDovL2NybDMuZGlnaWNlcnQuY29t\n"
-    "L0RpZ2lDZXJ0R2xvYmFsUm9vdEcyLmNybDA9BgNVHSAENjA0MAsGCWCGSAGG/WwC\n"
-    "ATAHBgVngQwBATAIBgZngQwBAgEwCAYGZ4EMAQICMAgGBmeBDAECAzANBgkqhkiG\n"
-    "9w0BAQsFAAOCAQEAkPFwyyiXaZd8dP3A+iZ7U6utzWX9upwGnIrXWkOH7U1MVl+t\n"
-    "wcW1BSAuWdH/SvWgKtiwla3JLko716f2b4gp/DA/JIS7w7d7kwcsr4drdjPtAFVS\n"
-    "slme5LnQ89/nD/7d+MS5EHKBCQRfz5eeLjJ1js+aWNJXMX43AYGyZm0pGrFmCW3R\n"
-    "bpD0ufovARTFXFZkAdl9h6g4U5+LXUZtXMYnhIHUfoyMo5tS58aI7Dd8KvvwVVo4\n"
-    "chDYABPPTHPbqjc1qCmBaZx2vN4Ye5DUys/vZwP9BFohFrH/6j/f3IL16/RZkiMN\n"
-    "JCqVJUzKoZHm1Lesh3Sz8W2jmdv51b2EQJ8HmA==\n"
-    "-----END CERTIFICATE-----\n";
-
-/*
- * FUNCTION DEFINITIONS
+/* ------------------------------------------------------ */
+/*                    PRIVATE FUNCTIONS                   */
+/* ------------------------------------------------------ */
+/* ------------------- Authentication ------------------- */
+/**
+ * @brief Check if the access token, client_id, client_secret, and refresh_token are set.
+ *
+ *
+ * @param ctx - SpotifyContext pointer
+ * @return true - if all tokens are set
  */
-void start_webserver(SpotifyContext *ctx);
-bool get_access_token(SpotifyContext *ctx);
-
-// get access token
-// build the request
-bool is_auth(SpotifyContext *ctx) {
+bool sp_is_authorized(const SpotifyContext *ctx) {
     return !(strcmp(ctx->refresh_token, "") == 0 || strcmp(ctx->client_id, "") == 0 || strcmp(ctx->client_secret, "") == 0 || strcmp(ctx->access_token, "") == 0);
 }
 
-bool is_refresh_token(SpotifyContext *ctx) {
+/**
+ * @brief Check if the refresh token, client_id and client_secret are set.
+ *
+ *
+ * @param ctx - SpotifyContext pointer
+ * @return true - if all tokens are set
+ */
+bool sp_has_refresh_token(const SpotifyContext *ctx) {
     return !(strcmp(ctx->refresh_token, "") == 0 || strcmp(ctx->client_id, "") == 0 || strcmp(ctx->client_secret, "") == 0);
 }
 
-void get_auth(SpotifyContext *ctx) {
-    // This function should be implemented to get the access token from Spotify API
-    // using the client_id, client_secret, and refresh_token.
-    // The access token should be stored in ctx->access_token.
-    // load from nvs
-    nvs_handle_t handle;
-    esp_err_t err = nvs_open("storage", NVS_READONLY, &handle);
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "Error (%s) opening NVS handle!", esp_err_to_name(err));
-        // return;
-    }
-    uint16_t required_size = 0;
-    err = nvs_get_u16(handle, "sp_rt_size", &required_size);
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "Error (%s) getting refresh token size!", esp_err_to_name(err));
-        nvs_close(handle);
-        // return;
-    }
-    ESP_LOGI(TAG, "Refresh token size: %d", required_size);
-    // nvs_close(handle);
-    if (required_size > 0) {
-        size_t size = required_size + 1;
-        ctx->refresh_token[0] = '\0';
-        err = nvs_get_str(handle, "sp_rt", ctx->refresh_token, &size);
-        if (err != ESP_OK) {
-            ESP_LOGE(TAG, "Error (%s) getting refresh token!", esp_err_to_name(err));
-            nvs_close(handle);
-            // return;
-        }
-        ESP_LOGI(TAG, "Refresh token: %s", ctx->refresh_token);
-        nvs_close(handle);
-    } else {
-        ESP_LOGE(TAG, "No refresh token available!");
-        nvs_close(handle);
-        // return;
-    }
-
-    // check if refresh token is empty
-    if (!is_refresh_token(ctx)) {
-        ESP_LOGE("SPOTIFY", "No refresh token available");
-
-        // start web server for authentication
-        if (!is_auth(ctx)) {
-            if (ctx->port == 443) {
-                char redirect_uri[40];
-
-                snprintf(ctx->redirect_uri, sizeof(redirect_uri), "https://%d.%d.%d.%d/", IP2STR(&ip_addr));
-
-                ESP_LOGI(TAG, "got ip:" IPSTR, IP2STR(&ip_addr));
-                ESP_LOGI(TAG, "Go to this url in your Browser to login to spotify or enter your credentials: %s\n", ctx->redirect_uri);
-                // snprintf(redirect_uri, sizeof(redirect_uri), "http://"IPSTR"/", "got ip:" IPSTR, IP2STR();
-                // ESP_LOGI(TAG, "Go to this url in your Browser to login to spotify or enter your credentials: http://%s/\n", WiFi.localIP().toString().c_str());
-            } else {
-                // ESP_LOGI(TAG, "Go to this url in your Browser to login to spotify or enter your credentials: http://%s:%d/\n", WiFi.localIP().toString().c_str(), g_port);
-            }
-            start_webserver(ctx);
-        }
-    } else {
-        ESP_LOGI(TAG, "Refresh token available, getting access token...");
-        // Call the function to get the access token using the refresh token
-        // This function should be implemented to make a request to Spotify API
-        // and retrieve the access token.
-        if (get_access_token(ctx)) {
-            ESP_LOGI(TAG, "Access token retrieved successfully");
-            // Store the access token in ctx->access_token
-            // ctx->access_token = ...;
-        } else {
-            ESP_LOGE(TAG, "Failed to retrieve access token");
-        }
-    }
-}
-
-esp_err_t _http_event_handler(esp_http_client_event_t *evt) {
-    static char *output_buffer; // Buffer to store response of http request from event handler
-    static int output_len;      // Stores number of bytes read
-
-    switch (evt->event_id) {
-    case HTTP_EVENT_ERROR:
-        ESP_LOGD(TAG, "HTTP_EVENT_ERROR");
-        break;
-    case HTTP_EVENT_ON_CONNECTED:
-        ESP_LOGD(TAG, "HTTP_EVENT_ON_CONNECTED");
-        break;
-    case HTTP_EVENT_HEADER_SENT:
-        ESP_LOGD(TAG, "HTTP_EVENT_HEADER_SENT");
-        break;
-    case HTTP_EVENT_ON_HEADER:
-        ESP_LOGD(TAG, "HTTP_EVENT_ON_HEADER, key=%s, value=%s", evt->header_key, evt->header_value);
-        break;
-    case HTTP_EVENT_ON_DATA:
-        ESP_LOGD(TAG, "HTTP_EVENT_ON_DATA, len=%d", evt->data_len);
-        // Clean the buffer in case of a new request
-        if (output_len == 0 && evt->user_data) {
-            // we are just starting to copy the output data into the use
-            memset(evt->user_data, 0, MAX_HTTP_OUTPUT_BUFFER);
-        }
-        /*
-         *  Check for chunked encoding is added as the URL for chunked encoding used in this example returns binary data.
-         *  However, event handler can also be used in case chunked encoding is used.
-         */
-        if (!esp_http_client_is_chunked_response(evt->client)) {
-            // If user_data buffer is configured, copy the response into the buffer
-            int copy_len = 0;
-            if (evt->user_data) {
-                // The last byte in evt->user_data is kept for the NULL character in case of out-of-bound access.
-                copy_len = MIN(evt->data_len, (MAX_HTTP_OUTPUT_BUFFER - output_len));
-                if (copy_len) {
-                    memcpy(evt->user_data + output_len, evt->data, copy_len);
-                }
-            } else {
-                int content_len = esp_http_client_get_content_length(evt->client);
-                if (output_buffer == NULL) {
-                    // We initialize output_buffer with 0 because it is used by strlen() and similar functions therefore should be null terminated.
-                    output_buffer = (char *)calloc(content_len + 1, sizeof(char));
-                    output_len = 0;
-                    if (output_buffer == NULL) {
-                        ESP_LOGE(TAG, "Failed to allocate memory for output buffer");
-                        return ESP_FAIL;
-                    }
-                }
-                copy_len = MIN(evt->data_len, (content_len - output_len));
-                if (copy_len) {
-                    memcpy(output_buffer + output_len, evt->data, copy_len);
-                }
-            }
-            output_len += copy_len;
-        }
-
-        break;
-    case HTTP_EVENT_ON_FINISH:
-        ESP_LOGD(TAG, "HTTP_EVENT_ON_FINISH");
-        if (output_buffer != NULL) {
-#if CONFIG_EXAMPLE_ENABLE_RESPONSE_BUFFER_DUMP
-            ESP_LOG_BUFFER_HEX(TAG, output_buffer, output_len);
-#endif
-            free(output_buffer);
-            output_buffer = NULL;
-        }
-        output_len = 0;
-        break;
-    case HTTP_EVENT_DISCONNECTED:
-        ESP_LOGI(TAG, "HTTP_EVENT_DISCONNECTED");
-        int mbedtls_err = 0;
-        esp_err_t err = esp_tls_get_and_clear_last_error((esp_tls_error_handle_t)evt->data, &mbedtls_err, NULL);
-        if (err != 0) {
-            ESP_LOGI(TAG, "Last esp error code: 0x%x", err);
-            ESP_LOGI(TAG, "Last mbedtls failure: 0x%x", mbedtls_err);
-        }
-        if (output_buffer != NULL) {
-            free(output_buffer);
-            output_buffer = NULL;
-        }
-        output_len = 0;
-        break;
-    case HTTP_EVENT_REDIRECT:
-        ESP_LOGD(TAG, "HTTP_EVENT_REDIRECT");
-        esp_http_client_set_header(evt->client, "From", "user@example.com");
-        esp_http_client_set_header(evt->client, "Accept", "text/html");
-        esp_http_client_set_redirection(evt->client);
-        break;
-    }
-    return ESP_OK;
-}
-
-bool get_refresh_token(const char *auth_code, const char *redirect_uri) {
+/**
+ * @brief Exchange authorization code for refresh token and access token.
+ *
+ * @param auth_code - Authorization code received from Spotify
+ * @param redirect_uri - Redirect URI used in the authorization request
+ * @return true if the exchange was successful, false otherwise
+ */
+bool sp_exchange_code_refresh_token(const char *auth_code, const char *redirect_uri) {
     char post_data[512];
 
     // Construct POST data
@@ -323,7 +140,7 @@ bool get_refresh_token(const char *auth_code, const char *redirect_uri) {
         .method = HTTP_METHOD_POST,
         .timeout_ms = 5000,
         .cert_pem = _spotify_root_ca,
-        .event_handler = _http_event_handler,
+        .event_handler = sp_http_event_handler,
         .user_data = response_buffer,
     };
 
@@ -417,7 +234,7 @@ bool get_refresh_token(const char *auth_code, const char *redirect_uri) {
         // print heap information
         size_t free_heap = esp_get_free_heap_size();
         size_t min_free_heap = esp_get_minimum_free_heap_size();
-        ESP_LOGI(TAG, "get_refresh_token heap: %zu bytes, Minimum free heap: %zu bytes", free_heap, min_free_heap);
+        ESP_LOGI(TAG, "sp_exchange_code_refresh_token heap: %zu bytes, Minimum free heap: %zu bytes", free_heap, min_free_heap);
 #endif
 
         return true;
@@ -430,8 +247,14 @@ bool get_refresh_token(const char *auth_code, const char *redirect_uri) {
     return false;
 }
 
-bool get_access_token(SpotifyContext *ctx) {
-    if (!is_refresh_token(ctx)) {
+/**
+ * @brief Fetch access token using refresh token.
+ *
+ * @param ctx - SpotifyContext pointer
+ * @return true if the access token was fetched successfully, false otherwise
+ */
+bool sp_fetch_access_token(SpotifyContext *ctx) {
+    if (!sp_has_refresh_token(ctx)) {
         ESP_LOGE("SPOTIFY", "No refresh token available");
         return false;
     }
@@ -450,7 +273,7 @@ bool get_access_token(SpotifyContext *ctx) {
         .method = HTTP_METHOD_POST,
         .timeout_ms = 5000,
         .cert_pem = _spotify_root_ca,
-        .event_handler = _http_event_handler,
+        .event_handler = sp_http_event_handler,
         .user_data = response_buffer,
     };
 
@@ -527,7 +350,7 @@ bool get_access_token(SpotifyContext *ctx) {
 #ifdef DEBUG
     size_t free_heap = esp_get_free_heap_size();
     size_t min_free_heap = esp_get_minimum_free_heap_size();
-    ESP_LOGI(TAG, "get_access_token heap: %zu bytes, Minimum free heap: %zu bytes", free_heap, min_free_heap);
+    ESP_LOGI(TAG, "sp_fetch_access_token heap: %zu bytes, Minimum free heap: %zu bytes", free_heap, min_free_heap);
 #endif
 
     cJSON_Delete(root);
@@ -535,7 +358,92 @@ bool get_access_token(SpotifyContext *ctx) {
     return success;
 }
 
-esp_err_t root_get_handler(httpd_req_t *req) {
+/**
+ * @brief Try to load refresh token from NVS is set, if not, start web server for authentication.
+ *        Obtain access token using refresh token if available.
+ *
+ * @param ctx - SpotifyContext pointer
+ */
+void sp_get_auth(SpotifyContext *ctx) {
+    // load from nvs
+    nvs_handle_t handle;
+    esp_err_t err = nvs_open("storage", NVS_READONLY, &handle);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Error (%s) opening NVS handle!", esp_err_to_name(err));
+    }
+    uint16_t required_size = 0;
+    err = nvs_get_u16(handle, "sp_rt_size", &required_size);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Error (%s) getting refresh token size!", esp_err_to_name(err));
+        nvs_close(handle);
+    }
+    ESP_LOGI(TAG, "Refresh token size: %d", required_size);
+    if (required_size > 0) {
+        size_t size = required_size + 1;
+        ctx->refresh_token[0] = '\0';
+        err = nvs_get_str(handle, "sp_rt", ctx->refresh_token, &size);
+        if (err != ESP_OK) {
+            ESP_LOGE(TAG, "Error (%s) getting refresh token!", esp_err_to_name(err));
+            nvs_close(handle);
+            // return;
+        }
+        ESP_LOGI(TAG, "Refresh token: %s", ctx->refresh_token);
+        nvs_close(handle);
+    } else {
+        ESP_LOGE(TAG, "No refresh token available!");
+        nvs_close(handle);
+        // return;
+    }
+
+    // check if refresh token is empty
+    if (!sp_has_refresh_token(ctx)) {
+        ESP_LOGE("SPOTIFY", "No refresh token available");
+
+        // start web server for authentication
+        if (!sp_is_authorized(ctx)) {
+            if (ctx->port == 443) {
+                char redirect_uri[40];
+
+                snprintf(ctx->redirect_uri, sizeof(redirect_uri), "https://%d.%d.%d.%d/", IP2STR(&ip_addr));
+
+                ESP_LOGI(TAG, "got ip:" IPSTR, IP2STR(&ip_addr));
+                ESP_LOGI(TAG, "Go to this url in your Browser to login to spotify or enter your credentials: %s\n", ctx->redirect_uri);
+                // snprintf(redirect_uri, sizeof(redirect_uri), "http://"IPSTR"/", "got ip:" IPSTR, IP2STR();
+                // ESP_LOGI(TAG, "Go to this url in your Browser to login to spotify or enter your credentials: http://%s/\n", WiFi.localIP().toString().c_str());
+            } else {
+                // ESP_LOGI(TAG, "Go to this url in your Browser to login to spotify or enter your credentials: http://%s:%d/\n", WiFi.localIP().toString().c_str(), g_port);
+            }
+            // heap info
+            size_t free_heap = esp_get_free_heap_size();
+            size_t min_free_heap = esp_get_minimum_free_heap_size();
+            ESP_LOGE("WEBSERVER", "Start webserver heap: %zu bytes, Minimum free heap: %zu bytes", free_heap, min_free_heap);
+
+            sp_start_webserver(ctx);
+        }
+    } else {
+        ESP_LOGI(TAG, "Refresh token available, getting access token...");
+        // Call the function to get the access token using the refresh token
+        // This function should be implemented to make a request to Spotify API
+        // and retrieve the access token.
+        if (sp_fetch_access_token(ctx)) {
+            ESP_LOGI(TAG, "Access token retrieved successfully");
+            // Store the access token in ctx->access_token
+            // ctx->access_token = ...;
+        } else {
+            ESP_LOGE(TAG, "Failed to retrieve access token");
+        }
+    }
+}
+
+/* ---------------------- Webserver --------------------- */
+
+/**
+ * @brief Handles the root GET request for the web server. Displays the login page.
+ *
+ * @param ctx - SpotifyContext pointer
+ * @return ESP_OK on success, or an error code on failure
+ */
+esp_err_t sp_handle_root_get(httpd_req_t *req) {
     char buf[100];
     size_t buf_len;
 
@@ -561,7 +469,15 @@ esp_err_t root_get_handler(httpd_req_t *req) {
     return ESP_OK;
 }
 
-esp_err_t callback_handler(httpd_req_t *req) {
+/**
+ * @brief Handles the callback request from Spotify after authentication.
+ *        It processes the authorization code, retrieves the refresh token,
+ *        and displays the setup completion message. It then stops the web server.
+ *
+ * @param req - Pointer to the HTTP request structure
+ * @return ESP_OK on success, or an error code on failure
+ */
+esp_err_t sp_handle_callback(httpd_req_t *req) {
     SpotifyContext *ctx = (SpotifyContext *)req->user_ctx;
 
     if (ctx->refresh_token[0] == '\0') {
@@ -581,8 +497,6 @@ esp_err_t callback_handler(httpd_req_t *req) {
             return ESP_OK;
         }
 
-        ESP_LOGI(TAG, "Redirect URI: %s", ctx->redirect_uri);
-
         // Try to get the 'code' from query
         char code[256] = "";
         if (httpd_query_key_value(query, "code", code, sizeof(code)) == ESP_OK) {
@@ -595,19 +509,25 @@ esp_err_t callback_handler(httpd_req_t *req) {
             char redirect_uri_full[150];
             snprintf(redirect_uri_full, sizeof(redirect_uri_full), "%scallback", ctx->redirect_uri);
 
-            if (get_refresh_token(ctx->auth_code, redirect_uri_full)) {
+            if (sp_exchange_code_refresh_token(ctx->auth_code, redirect_uri_full)) {
                 char message[500];
                 snprintf(message, sizeof(message),
                          "Setup Complete, Refresh Token: %s <br>You can now close this page",
                          ctx->refresh_token);
                 httpd_resp_set_type(req, "text/html");
                 httpd_resp_sendstr(req, message);
+
+                // heap info
+                size_t free_heap = esp_get_free_heap_size();
+                size_t min_free_heap = esp_get_minimum_free_heap_size();
+                ESP_LOGE(TAG, "stop webserver heap: %zu bytes, Minimum free heap: %zu bytes", free_heap, min_free_heap);
+                httpd_stop(ctx->server);
+
             } else {
                 httpd_resp_set_type(req, "text/html");
                 httpd_resp_sendstr(req, "Something went wrong, please try again");
             }
 
-            // httpd_stop(ctx->server_handle);
             return ESP_OK;
         } else {
             // No code arg, fallback to login page
@@ -623,7 +543,7 @@ esp_err_t callback_handler(httpd_req_t *req) {
         // Refresh token already present — setup complete
         httpd_resp_set_type(req, "text/html");
         httpd_resp_sendstr(req, "Spotify setup complete");
-        // httpd_stop(ctx->server_handle);
+        httpd_stop(ctx->server);
         return ESP_OK;
     }
 
@@ -635,7 +555,15 @@ esp_err_t callback_handler(httpd_req_t *req) {
 #endif
 }
 
-esp_err_t get_handler(httpd_req_t *req) {
+/**
+ * @brief Handles the GET request for the /get endpoint.
+ *        It processes the query parameters and sets the credentials
+ *        input in the credentials page in the context.
+ *
+ * @param req - Pointer to the HTTP request structure
+ * @return ESP_OK on success, or an error code on failure
+ */
+esp_err_t sp_handle_get(httpd_req_t *req) {
     SpotifyContext *ctx = (SpotifyContext *)req->user_ctx;
 
     char query[256];
@@ -684,7 +612,14 @@ esp_err_t get_handler(httpd_req_t *req) {
     return ESP_OK;
 }
 
-void start_webserver(SpotifyContext *ctx) {
+/**
+ * @brief Starts the web server for Spotify authentication.
+ *
+ * @param ctx - Pointer to the SpotifyContext structure
+ * @return ESP_OK on success, or an error code on failure
+ */
+esp_err_t sp_start_webserver(SpotifyContext *ctx) {
+    esp_err_t ret = ESP_OK;
     httpd_ssl_config_t conf = HTTPD_SSL_CONFIG_DEFAULT();
 
     // conf.httpd.max_uri_len = 512;     // default: 512
@@ -700,40 +635,47 @@ void start_webserver(SpotifyContext *ctx) {
     conf.prvtkey_pem = server_key_pem_start;
     conf.prvtkey_len = server_key_pem_end - server_key_pem_start;
 
-    esp_err_t ret = httpd_ssl_start(&ctx->server, &conf);
+    ret = httpd_ssl_start(&ctx->server, &conf);
     if (ret == ESP_OK) {
         httpd_uri_t root = {
             .uri = "/",
             .method = HTTP_GET,
-            .handler = root_get_handler,
+            .handler = sp_handle_root_get,
             .user_ctx = ctx};
         httpd_register_uri_handler(ctx->server, &root);
 
         httpd_uri_t callback = {
             .uri = "/callback",
             .method = HTTP_GET,
-            .handler = callback_handler,
+            .handler = sp_handle_callback,
             .user_ctx = ctx};
         httpd_register_uri_handler(ctx->server, &callback);
 
         httpd_uri_t get = {
             .uri = "/get",
             .method = HTTP_GET,
-            .handler = get_handler,
+            .handler = sp_handle_get,
             .user_ctx = ctx};
         httpd_register_uri_handler(ctx->server, &get);
 
-        if (ctx->debug_on) {
-            ESP_LOGI(TAG, "HTTPS server started");
-        }
+        ESP_LOGI(TAG, "HTTPS server started");
     } else {
-        if (ctx->debug_on) {
-            ESP_LOGE(TAG, "Failed to start HTTPS server: %s", esp_err_to_name(ret));
-        }
+        ESP_LOGE(TAG, "Failed to start HTTPS server: %s", esp_err_to_name(ret));
     }
+    return ret;
 }
 
-void get_current_playback(SpotifyContext *ctx, CurrentlyPlayingData *data) {
+/* -------------------- Playback API -------------------- */
+/**
+ * @brief Get the current playback information from Spotify.
+ *
+ * @param ctx - Pointer to the SpotifyContext structure
+ * @param data - Pointer to the CurrentlyPlayingData structure to store playback information
+ * @return ESP_OK on success, or an error code on failure
+ */
+esp_err_t sp_get_current_playback(SpotifyContext *ctx, CurrentlyPlayingData *data) {
+    esp_err_t ret = ESP_OK;
+
     ESP_LOGI(TAG, "Getting current playback");
 
     esp_http_client_config_t config = {
@@ -741,7 +683,7 @@ void get_current_playback(SpotifyContext *ctx, CurrentlyPlayingData *data) {
         .method = HTTP_METHOD_GET,
         .transport_type = HTTP_TRANSPORT_OVER_SSL,
         .cert_pem = _spotify_root_ca,
-        .event_handler = _http_event_handler,
+        .event_handler = sp_http_event_handler,
         .user_data = response_buffer,
         .timeout_ms = 15000,
     };
@@ -753,9 +695,10 @@ void get_current_playback(SpotifyContext *ctx, CurrentlyPlayingData *data) {
 
     char auth_header[308];
     snprintf(auth_header, sizeof(auth_header), "Bearer %s", ctx->access_token);
-    esp_err_t header_err = esp_http_client_set_header(client, "Authorization", auth_header);
-    if (header_err != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to set Authorization header: %s", esp_err_to_name(header_err));
+    ret = esp_http_client_set_header(client, "Authorization", auth_header);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to set Authorization header: %s", esp_err_to_name(ret));
+        goto cleanup;
     }
 
     ESP_LOGI(TAG, "Authorization: %s", auth_header);
@@ -832,33 +775,45 @@ void get_current_playback(SpotifyContext *ctx, CurrentlyPlayingData *data) {
             }
         } else {
             ESP_LOGE(TAG, "Error: %d", status);
+            goto cleanup;
         }
     } else {
         ESP_LOGE(TAG, "HTTP request failed: %s", esp_err_to_name(err));
         ESP_LOGE(TAG, "Response: %s", response_buffer);
+        goto cleanup;
     }
 
+cleanup:
     // heap information
     size_t free_heap = esp_get_free_heap_size();
     size_t min_free_heap = esp_get_minimum_free_heap_size();
-    ESP_LOGI(TAG, "get_current_playback heap: %zu bytes, Minimum free heap: %zu bytes", free_heap, min_free_heap);
+    ESP_LOGI(TAG, "sp_get_current_playback heap: %zu bytes, Minimum free heap: %zu bytes", free_heap, min_free_heap);
 
     esp_http_client_cleanup(client);
+    return ret;
 }
 
-void get_image(const char *url, char *image_buffer, size_t buffer_size, int64_t *image_size) {
+/**
+ * @brief Get the image from the given URL and store it in the provided buffer.
+ *
+ * @param url - URL of the image to fetch
+ * @param out_buffer - Buffer to store the image data
+ * @param buffer_size - Size of the image buffer
+ * @param out_image_size - Pointer to store the size of the fetched image
+ */
+void sp_get_image(const char *url, char *out_buffer, size_t buffer_size, int64_t *out_image_size) {
     esp_http_client_config_t config = {
         .url = url,
         .method = HTTP_METHOD_GET,
         .transport_type = HTTP_TRANSPORT_OVER_SSL,
         .cert_pem = _spotify_root_ca,
-        .event_handler = _http_event_handler,
-        .user_data = image_buffer,
+        .event_handler = sp_http_event_handler,
+        .user_data = out_buffer,
         .timeout_ms = 15000,
     };
 
     // Clear the buffer before request
-    memset(image_buffer, 0, buffer_size);
+    memset(out_buffer, 0, buffer_size);
 
     esp_http_client_handle_t client = esp_http_client_init(&config);
 
@@ -868,9 +823,9 @@ void get_image(const char *url, char *image_buffer, size_t buffer_size, int64_t 
         int status = esp_http_client_get_status_code(client);
         if (status == 200) {
 
-            *image_size = esp_http_client_get_content_length(client);
+            *out_image_size = esp_http_client_get_content_length(client);
             ESP_LOGI(TAG, "Received image data (%lld bytes)", esp_http_client_get_content_length(client));
-            ESP_LOG_BUFFER_HEXDUMP(TAG, image_buffer, 32, ESP_LOG_INFO); // Log first 32 bytes for debugging
+            ESP_LOG_BUFFER_HEXDUMP(TAG, out_buffer, 32, ESP_LOG_INFO); // Log first 32 bytes for debugging
 
         } else {
             ESP_LOGE(TAG, "Error: %d", status);
@@ -882,7 +837,14 @@ void get_image(const char *url, char *image_buffer, size_t buffer_size, int64_t 
     esp_http_client_cleanup(client);
 }
 
-void update_current_playback(SpotifyContext *ctx, int32_t *delay) {
+/**
+ * @brief Obtain the current playback information and album image and
+ *        update the UI with the data.
+ *
+ * @param ctx - Pointer to the SpotifyContext structure
+ * @param out_delay_ms - Pointer to store the delay for the next update
+ */
+void sp_update_current_playback(SpotifyContext *ctx, int32_t *out_delay_ms) {
     CurrentlyPlayingData *data = (CurrentlyPlayingData *)malloc(sizeof(CurrentlyPlayingData));
 
     if (data == NULL) {
@@ -893,9 +855,9 @@ void update_current_playback(SpotifyContext *ctx, int32_t *delay) {
     }
     memset(data, 0, sizeof(CurrentlyPlayingData));
 
-    if (is_auth(&g_spotify_ctx)) {
+    if (sp_is_authorized(&g_spotify_ctx)) {
 
-        get_current_playback(&g_spotify_ctx, data);
+        sp_get_current_playback(&g_spotify_ctx, data);
 
         ESP_LOGI(TAG, "Currently playing: %s by %s", data->name, data->artists);
         ESP_LOGI(TAG, "Duration: %ld ms, Progress: %ld ms", data->duration_ms, data->progress_ms);
@@ -903,7 +865,7 @@ void update_current_playback(SpotifyContext *ctx, int32_t *delay) {
         ESP_LOGI(TAG, "Album Image URL: %s", data->album_image_url);
         ESP_LOGI(TAG, "Is Playing: %s", data->is_playing ? "true" : "false");
 
-        *delay = data->duration_ms - data->progress_ms + 5000; // Set delay to the remaining duration of the track
+        *out_delay_ms = data->duration_ms - data->progress_ms + 5000; // Set delay to the remaining duration of the track
     }
 
     if (data->name[0] != '\0') {
@@ -947,7 +909,12 @@ void update_current_playback(SpotifyContext *ctx, int32_t *delay) {
 
         int64_t image_size = 0;
 
-        get_image(data->album_image_url, image_buffer, 4096, &image_size);
+        // heap information
+        size_t free_heap = esp_get_free_heap_size();
+        size_t min_free_heap = esp_get_minimum_free_heap_size();
+        ESP_LOGI(TAG, "sp_get_image init heap: %zu bytes, Minimum free heap: %zu bytes", free_heap, min_free_heap);
+
+        sp_get_image(data->album_image_url, image_buffer, 4096, &image_size);
 
         esp_jpeg_image_cfg_t jpeg_cfg = {
             .indata = (uint8_t *)image_buffer,
@@ -989,60 +956,12 @@ void update_current_playback(SpotifyContext *ctx, int32_t *delay) {
     free(data);
 }
 
-void spotify_task(void *pvParameters) {
-    // Wait for WiFi to connect
-    while (wifi_connected == 0) {
-        vTaskDelay(pdMS_TO_TICKS(10000)); // 1 second delay
-    }
-
-    // Get access token
-    get_auth(&g_spotify_ctx);
-    int32_t delay = 30000; // Default delay of 30 seconds
-    while (1) {
-        if (spotify_event_group == NULL) {
-            ESP_LOGE(TAG, "Spotify event group is NULL");
-            vTaskDelay(pdMS_TO_TICKS(10000)); // 10 seconds delay
-            continue;
-        }
-        EventBits_t uxBits = xEventGroupWaitBits(
-            spotify_event_group,
-            // SPOTIFY_CMD_RESUME | SPOTIFY_CMD_PAUSE | SPOTIFY_CMD_PREV |
-            SPOTIFY_CMD_NEXT,
-            pdTRUE,              // Clear the bits before returning
-            pdFALSE,             // Wait for any bit to be set
-            pdMS_TO_TICKS(delay) // Wait for the specified delay
-        );
-
-        if (uxBits & SPOTIFY_CMD_RESUME) {
-            ESP_LOGI(TAG, "Resume command received");
-            pause_track();
-            vTaskDelay(pdMS_TO_TICKS(5000)); // 5 second delay
-        } else if (uxBits & SPOTIFY_CMD_PAUSE) {
-            ESP_LOGI(TAG, "Pause command received");
-            pause_track();
-            vTaskDelay(pdMS_TO_TICKS(5000)); // 5 second delay
-        } else if (uxBits & SPOTIFY_CMD_PREV) {
-            ESP_LOGI(TAG, "Previous command received");
-            previous_track();
-            vTaskDelay(pdMS_TO_TICKS(5000)); // 5 second delay
-        } else if (uxBits & SPOTIFY_CMD_NEXT) {
-            ESP_LOGI(TAG, "Next command received");
-            next_track();
-            vTaskDelay(pdMS_TO_TICKS(5000)); // 5 second delay
-        }
-        update_current_playback(&g_spotify_ctx, &delay);
-
-#ifdef DEBUG
-        delay = 45000; // Reset delay to 45 seconds
-#endif
-
-        vTaskDelay(pdMS_TO_TICKS(delay)); // 30 seconds delay
-    }
-    vTaskDelete(NULL);
-}
-
-// next_track
-esp_err_t next_track() {
+/**
+ * @brief Send a command to Spotify to play the next track.
+ *
+ * @return ESP_OK on success, or an error code on failure
+ */
+esp_err_t sp_next_track() {
     esp_err_t ret = ESP_FAIL;
     esp_http_client_handle_t client = NULL;
 
@@ -1051,7 +970,7 @@ esp_err_t next_track() {
         .method = HTTP_METHOD_POST,
         .transport_type = HTTP_TRANSPORT_OVER_SSL,
         .cert_pem = _spotify_root_ca,
-        .event_handler = _http_event_handler,
+        .event_handler = sp_http_event_handler,
         .user_data = response_buffer,
         .timeout_ms = 15000,
     };
@@ -1081,7 +1000,7 @@ esp_err_t next_track() {
         if (status == 204 || status == 200) {
             ESP_LOGI(TAG, "Next command sent successfully");
             int32_t delay = 30000; // Default delay of 30 seconds
-            update_current_playback(&g_spotify_ctx, &delay);
+            sp_update_current_playback(&g_spotify_ctx, &delay);
             ret = ESP_OK;
         } else {
             ESP_LOGE(TAG, "Unexpected status code: %d", status);
@@ -1097,8 +1016,12 @@ cleanup:
     return ret;
 }
 
-// previous_track
-esp_err_t previous_track() {
+/**
+ * @brief Send a command to Spotify to play the previous track.
+ *
+ * @return ESP_OK on success, or an error code on failure
+ */
+esp_err_t sp_previous_track() {
     esp_err_t ret = ESP_FAIL;
     esp_http_client_handle_t client = NULL;
 
@@ -1107,7 +1030,7 @@ esp_err_t previous_track() {
         .method = HTTP_METHOD_POST,
         .transport_type = HTTP_TRANSPORT_OVER_SSL,
         .cert_pem = _spotify_root_ca,
-        .event_handler = _http_event_handler,
+        .event_handler = sp_http_event_handler,
         .user_data = response_buffer,
         .timeout_ms = 15000,
     };
@@ -1137,7 +1060,7 @@ esp_err_t previous_track() {
         if (status == 204 || status == 200) {
             ESP_LOGI(TAG, "Previous command sent successfully");
             int32_t delay = 30000; // Default delay of 30 seconds
-            update_current_playback(&g_spotify_ctx, &delay);
+            sp_update_current_playback(&g_spotify_ctx, &delay);
             ret = ESP_OK;
         } else {
             ESP_LOGE(TAG, "Unexpected status code: %d", status);
@@ -1153,8 +1076,12 @@ cleanup:
     return ret;
 }
 
-// pause_track
-esp_err_t pause_track() {
+/**
+ * @brief Send a command to Spotify to pause the current track.
+ *
+ * @return ESP_OK on success, or an error code on failure
+ */
+esp_err_t sp_pause_track() {
     esp_err_t ret = ESP_FAIL;
     esp_http_client_handle_t client = NULL;
 
@@ -1163,7 +1090,7 @@ esp_err_t pause_track() {
         .method = HTTP_METHOD_PUT,
         .transport_type = HTTP_TRANSPORT_OVER_SSL,
         .cert_pem = _spotify_root_ca,
-        .event_handler = _http_event_handler,
+        .event_handler = sp_http_event_handler,
         .user_data = response_buffer,
         .timeout_ms = 15000,
     };
@@ -1193,7 +1120,7 @@ esp_err_t pause_track() {
         if (status == 204 || status == 200) {
             ESP_LOGI(TAG, "Pause command sent successfully");
             int32_t delay = 30000; // Default delay of 30 seconds
-            update_current_playback(&g_spotify_ctx, &delay);
+            sp_update_current_playback(&g_spotify_ctx, &delay);
             ret = ESP_OK;
         } else {
             ESP_LOGE(TAG, "Unexpected status code: %d", status);
@@ -1209,8 +1136,12 @@ cleanup:
     return ret;
 }
 
-// play_track
-esp_err_t resume_track() {
+/**
+ * @brief Send a command to Spotify to resume playback.
+ *
+ * @return ESP_OK on success, or an error code on failure
+ */
+esp_err_t sp_resume_track() {
     esp_err_t ret = ESP_FAIL;
     esp_http_client_handle_t client = NULL;
 
@@ -1226,7 +1157,7 @@ esp_err_t resume_track() {
         .method = HTTP_METHOD_PUT,
         .transport_type = HTTP_TRANSPORT_OVER_SSL,
         .cert_pem = _spotify_root_ca,
-        .event_handler = _http_event_handler,
+        .event_handler = sp_http_event_handler,
         .user_data = response_buffer,
         .timeout_ms = 15000,
     };
@@ -1269,7 +1200,7 @@ esp_err_t resume_track() {
         if (status == 204 || status == 200) {
             ESP_LOGI(TAG, "Pause command sent successfully");
             int32_t delay = 30000; // Default delay of 30 seconds
-            update_current_playback(&g_spotify_ctx, &delay);
+            sp_update_current_playback(&g_spotify_ctx, &delay);
             ret = ESP_OK;
         } else {
             ESP_LOGE(TAG, "Unexpected status code: %d", status);
@@ -1283,4 +1214,170 @@ cleanup:
         esp_http_client_cleanup(client);
     }
     return ret;
+}
+
+/* ----------------------- Utility ---------------------- */
+/**
+ * @brief HTTP event handler for handling HTTP events.
+ *
+ * @param evt - Pointer to the HTTP event structure
+ * @return ESP_OK on success, or an error code on failure
+ */
+esp_err_t sp_http_event_handler(esp_http_client_event_t *evt) {
+    static char *output_buffer; // Buffer to store response of http request from event handler
+    static int output_len;      // Stores number of bytes read
+
+    switch (evt->event_id) {
+    case HTTP_EVENT_ERROR:
+        ESP_LOGD(TAG, "HTTP_EVENT_ERROR");
+        break;
+    case HTTP_EVENT_ON_CONNECTED:
+        ESP_LOGD(TAG, "HTTP_EVENT_ON_CONNECTED");
+        break;
+    case HTTP_EVENT_HEADER_SENT:
+        ESP_LOGD(TAG, "HTTP_EVENT_HEADER_SENT");
+        break;
+    case HTTP_EVENT_ON_HEADER:
+        ESP_LOGD(TAG, "HTTP_EVENT_ON_HEADER, key=%s, value=%s", evt->header_key, evt->header_value);
+        break;
+    case HTTP_EVENT_ON_DATA:
+        ESP_LOGD(TAG, "HTTP_EVENT_ON_DATA, len=%d", evt->data_len);
+        // Clean the buffer in case of a new request
+        if (output_len == 0 && evt->user_data) {
+            // we are just starting to copy the output data into the use
+            memset(evt->user_data, 0, MAX_HTTP_OUTPUT_BUFFER);
+        }
+        /*
+         *  Check for chunked encoding is added as the URL for chunked encoding used in this example returns binary data.
+         *  However, event handler can also be used in case chunked encoding is used.
+         */
+        if (!esp_http_client_is_chunked_response(evt->client)) {
+            // If user_data buffer is configured, copy the response into the buffer
+            int copy_len = 0;
+            if (evt->user_data) {
+                // The last byte in evt->user_data is kept for the NULL character in case of out-of-bound access.
+                copy_len = MIN(evt->data_len, (MAX_HTTP_OUTPUT_BUFFER - output_len));
+                if (copy_len) {
+                    memcpy(evt->user_data + output_len, evt->data, copy_len);
+                }
+            } else {
+                int content_len = esp_http_client_get_content_length(evt->client);
+                if (output_buffer == NULL) {
+                    // We initialize output_buffer with 0 because it is used by strlen() and similar functions therefore should be null terminated.
+                    output_buffer = (char *)calloc(content_len + 1, sizeof(char));
+                    output_len = 0;
+                    if (output_buffer == NULL) {
+                        ESP_LOGE(TAG, "Failed to allocate memory for output buffer");
+                        return ESP_FAIL;
+                    }
+                }
+                copy_len = MIN(evt->data_len, (content_len - output_len));
+                if (copy_len) {
+                    memcpy(output_buffer + output_len, evt->data, copy_len);
+                }
+            }
+            output_len += copy_len;
+        }
+
+        break;
+    case HTTP_EVENT_ON_FINISH:
+        ESP_LOGD(TAG, "HTTP_EVENT_ON_FINISH");
+        if (output_buffer != NULL) {
+            free(output_buffer);
+            output_buffer = NULL;
+        }
+        output_len = 0;
+        break;
+    case HTTP_EVENT_DISCONNECTED:
+        ESP_LOGI(TAG, "HTTP_EVENT_DISCONNECTED");
+        int mbedtls_err = 0;
+        esp_err_t err = esp_tls_get_and_clear_last_error((esp_tls_error_handle_t)evt->data, &mbedtls_err, NULL);
+        if (err != 0) {
+            ESP_LOGI(TAG, "Last esp error code: 0x%x", err);
+            ESP_LOGI(TAG, "Last mbedtls failure: 0x%x", mbedtls_err);
+        }
+        if (output_buffer != NULL) {
+            free(output_buffer);
+            output_buffer = NULL;
+        }
+        output_len = 0;
+        break;
+    case HTTP_EVENT_REDIRECT:
+        ESP_LOGD(TAG, "HTTP_EVENT_REDIRECT");
+        esp_http_client_set_header(evt->client, "From", "user@example.com");
+        esp_http_client_set_header(evt->client, "Accept", "text/html");
+        esp_http_client_set_redirection(evt->client);
+        break;
+    }
+    return ESP_OK;
+}
+
+/* ------------------------------------------------------ */
+/*                    PUBLIC FUNCTIONS                    */
+/* ------------------------------------------------------ */
+/**
+ * @brief Task to handle Spotify commands and update playback information.
+ *
+ * @param pvParameters - Pointer to task parameters (not used)
+ */
+void spotify_task(void *pvParameters) {
+    // Wait for WiFi to connect
+    while (wifi_connected == 0) {
+        vTaskDelay(pdMS_TO_TICKS(10000)); // 1 second delay
+    }
+
+    // Get access token
+    sp_get_auth(&g_spotify_ctx);
+    int32_t delay = 30000; // Default delay of 30 seconds
+    while (1) {
+        if (spotify_event_group == NULL) {
+            ESP_LOGE(TAG, "Spotify event group is NULL");
+            vTaskDelay(pdMS_TO_TICKS(10000)); // 10 seconds delay
+            continue;
+        }
+        EventBits_t uxBits = xEventGroupWaitBits(
+            spotify_event_group,
+            // SPOTIFY_CMD_RESUME | SPOTIFY_CMD_PAUSE | SPOTIFY_CMD_PREV |
+            SPOTIFY_CMD_NEXT,
+            pdTRUE,              // Clear the bits before returning
+            pdFALSE,             // Wait for any bit to be set
+            pdMS_TO_TICKS(delay) // Wait for the specified delay
+        );
+
+        if (uxBits & SPOTIFY_CMD_RESUME) {
+            ESP_LOGI(TAG, "Resume command received");
+            sp_pause_track();
+            vTaskDelay(pdMS_TO_TICKS(5000)); // 5 second delay
+        } else if (uxBits & SPOTIFY_CMD_PAUSE) {
+            ESP_LOGI(TAG, "Pause command received");
+            sp_pause_track();
+            vTaskDelay(pdMS_TO_TICKS(5000)); // 5 second delay
+        } else if (uxBits & SPOTIFY_CMD_PREV) {
+            ESP_LOGI(TAG, "Previous command received");
+            sp_previous_track();
+            vTaskDelay(pdMS_TO_TICKS(5000)); // 5 second delay
+        } else if (uxBits & SPOTIFY_CMD_NEXT) {
+            ESP_LOGI(TAG, "Next command received");
+            sp_next_track();
+            vTaskDelay(pdMS_TO_TICKS(5000)); // 5 second delay
+        }
+        sp_update_current_playback(&g_spotify_ctx, &delay);
+
+#ifdef DEBUG
+        delay = 45000; // Reset delay to 45 seconds
+#endif
+
+        // heap information
+        size_t free_heap = esp_get_free_heap_size();
+        size_t min_free_heap = esp_get_minimum_free_heap_size();
+        ESP_LOGI(TAG, "get_image init heap: %zu bytes, Minimum free heap: %zu bytes", free_heap, min_free_heap);
+
+        // task and heap information
+        // size_t free_heap = esp_get_free_heap_size();
+        // size_t min_free_heap = esp_get_minimum_free_heap_size();
+        // ESP_LOGD(TAG, "spotify_task heap: %zu bytes, Minimum free heap: %zu bytes", free_heap, min_free_heap);
+        // UBaseType_t high_water_mark = uxTaskGetStackHighWaterMark(NULL);
+        // ESP_LOGD(TAG, "spotify_task high water mark: %d", high_water_mark);
+    }
+    vTaskDelete(NULL);
 }
