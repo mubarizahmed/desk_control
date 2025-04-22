@@ -885,3 +885,36 @@ void setSpotifyData(char *name, char *artist, char *image, bool playing) {
     lv_canvas_set_buffer(sp_cover_img, sp_cover_img_buffer, 64, 64, LV_COLOR_FORMAT_RGB565);
     // lv_canvas_copy_buf(canvas, image, 64, 64);
 }
+
+static lv_font_t *get_font_for_priority(uint8_t priority) {
+    switch (priority) {
+    case 4:
+        return &jetbrains_mono_bold_12;
+    case 3:
+        return &jetbrains_mono_regular_12;
+    default:
+        return &jetbrains_mono_light_12;
+    }
+}
+
+void setTodoistData(TodoistTaskData *data, int count) {
+    lv_obj_t *task_labels[] = {
+        task_1_label,
+        task_2_label,
+        task_3_label,
+        task_4_label};
+
+    int total_slots = sizeof(task_labels) / sizeof(task_labels[0]);
+
+    for (int i = 0; i < total_slots; i++) {
+        if (i < count) {
+            char task_name[25];
+            snprintf(task_name, sizeof(task_name), "◌ %s", data[i].task_name);
+            lv_label_set_text(task_labels[i], task_name);
+            lv_obj_set_style_text_font(task_labels[i], get_font_for_priority(data[i].task_priority), 0);
+        } else {
+            // Clear the label if no task is assigned
+            lv_label_set_text(task_labels[i], "");
+        }
+    }
+}

@@ -10,6 +10,7 @@ idf_component_register(
   "calendar_serv.c" "calendar_serv.h"
   "spotify_serv.c" "spotify_serv.h"
   # "SpotifyEsp32.cpp" "SpotifyEsp32.h"
+  "todoist_serv.c" "todoist_serv.h"
   "fonts/jetbrains_mono_bold_8.c"
   "fonts/jetbrains_mono_bold_10.c"
   "fonts/jetbrains_mono_bold_12.c"

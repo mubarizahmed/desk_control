@@ -11,7 +11,7 @@
 #define UI_H
 
 #include "lvgl.h"
-
+#include "todoist_serv.h"
 /*
  * PUBLIC FUNCTIONS
  */
@@ -26,5 +26,6 @@ void setPomodoro(char *text);
 void setCalendarData(char *data);
 void setSpotifyTextData(char *name, char *artist, bool playing);
 void setSpotifyData(char *name, char *artist, char *image, bool playing);
+void setTodoistData(TodoistTaskData *data, int count);
 
 #endif // UI_H
