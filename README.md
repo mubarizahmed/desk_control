@@ -2,6 +2,11 @@
 
 This is a simple physical widget that sits on your desk and allows you to perform some basic productivity tasks. It works independently of your computer or phone and hence, _in theory_, it should help you focus on your work. It is a work in progress and I will be adding more features as I go along.
 
+<div align="center" style="display: flex; justify-content: center; align-items: center;">
+  <img src="docs/current.jpg" alt="Mock UI" width="200"/>
+  <img src="docs/Mockup.png" alt="Mock UI" width="200"/>
+</div>
+
 ## Features
 
 - **Current Time** - Displays the current time in a 24-hour format.
@@ -9,10 +14,19 @@ This is a simple physical widget that sits on your desk and allows you to perfor
 - **Pomodoro Timer** - A simple timer that helps you focus on your work for a some template amount of time and then take a break. Current implementation is 25 minutes of work and 5 minutes of break. You can change this in the code.
 - **Calendar** - Displays the current date and the next 2 events from your Google Calendar. You need to set up a Google script to get the events from your calendar. See the [Google Calendar Setup](#google-calendar-setup) section below.
 
+- **Spotify Control** - Control your Spotify playback (play, pause, next, previous) from the widget.
+
+- **Todoist Integration** - View and complete your upcoming tasks from Todoist.
+
 ## Planned Features
 
-- **Spotify Control** - Control your Spotify playback (play, pause, next, previous) from the widget.
-- **Todoist Integration** - View and complete your upcoming tasks from Todoist.
+- **PCB Design** - Single PCB design that can be printed on PCBWay or JLCPCB.
+
+- **Housing** - §D printed housing for the PCB and screen.
+
+- **Sensor Integration** - Add more sensors to the project - maybe a temperature sensor, humidity sensor, etc. to get more data from the environment.
+
+- **Widget Details** - Widgets will be clickable and will show more details about the current state. For example, the weather widget will show the hourly forecast for the next 24 hours, the calendar widget will show the events for the next week, etc.
 
 ## Hardware Setup (Work in Progress)
 
