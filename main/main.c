@@ -13,12 +13,14 @@
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "mbedtls/platform.h"
 #include "nvs_flash.h"
 #include <stdio.h>
 #include <sys/lock.h>
 #include <sys/param.h>
 #include <unistd.h>
 
+#include "app_events.h"
 #include "calendar_serv.h"
 #include "display_manager.h"
 #include "esp_event.h"
@@ -26,6 +28,7 @@
 #include "pomodoro.h"
 #include "spotify_serv.h"
 #include "time_serv.h"
+#include "todoist_serv.h"
 #include "ui.h"
 #include "weather_serv.h"
 #include "wifi_manager.h"
@@ -37,6 +40,10 @@ static const char *TAG = "MAIN";
  *
  */
 void app_main(void) {
+
+    app_events_init();
+    spotify_event_group = xEventGroupCreate();
+
     // Initialize Display and LVGL
     display_manager_init();
 
@@ -62,26 +69,82 @@ void app_main(void) {
     nvs_close(my_handle);
 
 
-    // Initialize WiFi
-    if (CONFIG_LOG_MAXIMUM_LEVEL > CONFIG_LOG_DEFAULT_LEVEL) {
-        /* If you only want to open more logs in the wifi module, you need to make the max level greater than the default level,
-         * and call esp_log_level_set() before esp_wifi_init() to improve the log level of the wifi module. */
-        esp_log_level_set("wifi", CONFIG_LOG_MAXIMUM_LEVEL);
-    }
+
+    // esp_log_level_set("wifi", ESP_LOG_VERBOSE);
+
+    esp_log_level_set("MEMORY", ESP_LOG_VERBOSE);
+    esp_log_level_set("STACK", ESP_LOG_VERBOSE);
+
     wifi_init_sta();
 
-    // // create task to get time and keep widget updated
-    xTaskCreate(&time_task, "time_task", 1024 * 10, NULL, 3, NULL);
+    while (1) {
+        // Wait for WiFi to connect
+        if (wifi_connected == 1) {
+            break;
+        }
+        vTaskDelay(pdMS_TO_TICKS(1000)); // 1 second delay
+    }
 
-    // // create new task to fetch data
-    xTaskCreate(&weather_task, "weather_task", 1024 * 15, NULL, 2, NULL);
-
-    // // create new task for pomodoro
+    // create new task for pomodoro
     xTaskCreate(&pomodoro_task, "pomodoro_task", 1024 * 1, NULL, 4, NULL);
 
-    // // create new task for calendar
+    // create task to get time and keep widget updated
+    xTaskCreate(&time_task, "time_task", 1024 * 5, NULL, 3, NULL);
+
+    EventBits_t uxBits = xEventGroupWaitBits(
+        app_event_group,
+        TIME_SET_EVENT,
+        pdTRUE,       // Clear the bits before returning
+        pdFALSE,      // Wait for any bit to be set
+        portMAX_DELAY // Wait indefinitely
+    );
+
+    // create new task to fetch data
+    xTaskCreate(&weather_task, "weather_task", 1024 * 10, NULL, 2, NULL);
+
+    uxBits = xEventGroupWaitBits(
+        app_event_group,
+        WEATHER_SET_EVENT,
+        pdTRUE,       // Clear the bits before returning
+        pdFALSE,      // Wait for any bit to be set
+        portMAX_DELAY // Wait indefinitely
+    );
+
+    // create new task for calendar
     xTaskCreate(&calendar_task, "calendar_task", 1024 * 10, NULL, 2, NULL);
-#ifdef DEBUG
+
+    uxBits = xEventGroupWaitBits(
+        app_event_group,
+        CALENDAR_SET_EVENT,
+        pdTRUE,       // Clear the bits before returning
+        pdFALSE,      // Wait for any bit to be set
+        portMAX_DELAY // Wait indefinitely
+    );
+
+    // esp_log_level_set("TODOIST_SERV", ESP_LOG_INFO); // Set log level to INFO for all components
+
+    xTaskCreate(&todoist_task, "todoist_task", 1024 * 25, NULL, 3, NULL);
+
+    uxBits = xEventGroupWaitBits(
+        app_event_group,
+        TODOIST_SET_EVENT,
+        pdTRUE,       // Clear the bits before returning
+        pdFALSE,      // Wait for any bit to be set
+        portMAX_DELAY // Wait indefinitely
+    );
+
+    xTaskCreate(&spotify_task, "spotify_task", 1024 * 20, NULL, 3, NULL);
+
+    while (1) {
+        // print heap information
+        size_t free_heap = esp_get_free_heap_size();
+        size_t min_free_heap = esp_get_minimum_free_heap_size();
+        ESP_LOGI(TAG, "Main heap: %zu bytes, Minimum free heap: %zu bytes", free_heap, min_free_heap);
+
+        vTaskDelay(pdMS_TO_TICKS(30000)); // 1 minutes delay
+    }
+// #define DEBUG 1
+#ifdef DEBUG_MAIN
     while (1) {
 
         // print system state every second
@@ -98,6 +161,11 @@ void app_main(void) {
                      task_status_array[i].eCurrentState, task_status_array[i].uxCurrentPriority, task_status_array[i].usStackHighWaterMark);
         }
         free(task_status_array);
+
+        // print heap information
+        size_t free_heap = esp_get_free_heap_size();
+        size_t min_free_heap = esp_get_minimum_free_heap_size();
+        ESP_LOGI(TAG, "Main heap: %zu bytes, Minimum free heap: %zu bytes", free_heap, min_free_heap);
 
         vTaskDelay(pdMS_TO_TICKS(60000)); // 1 minutes delay
     }

@@ -21,6 +21,7 @@
 #include "string.h"
 #include <sys/param.h>
 
+#include "app_events.h"
 #include "display_manager.h"
 #include "secret_conf.h"
 #include "ui.h"
@@ -50,7 +51,7 @@ static bool td_tasks_loaded = false;
 /* ------------------------------------------------------ */
 /* ------------------------- API ------------------------ */
 
-esp_err_t td_get_today_tasks();
+esp_err_t td_get_today_tasks(int *out_delay_ms);
 /* ----------------------- Utility ---------------------- */
 
 esp_err_t td_http_event_handler(esp_http_client_event_t *evt);
@@ -65,7 +66,7 @@ void strncpy_with_dots(char *dest, const char *src, size_t max_len);
  *
  * @return esp_err_t - ESP_OK on success, or an error code on failure
  */
-esp_err_t td_get_today_tasks() {
+esp_err_t td_get_today_tasks(int *out_delay_ms) {
     esp_err_t ret = ESP_OK;
 
     ESP_LOGI(TAG, "Getting tasks");
@@ -141,6 +142,7 @@ esp_err_t td_get_today_tasks() {
                 setTodoistData(td_tasks, 4);
                 _lock_release(&lvgl_api_lock);
                 td_tasks_loaded = true;
+                *out_delay_ms = 2000; // Set delay to 2 seconds after data is loaded
             }
         } else {
             ESP_LOGE(TAG, "Error: %d", status);
@@ -344,14 +346,18 @@ void todoist_task(void *pvParameters) {
     }
 
     while (!td_tasks_loaded) {
-        esp_err_t ret = td_get_today_tasks();
+        int delay = 30000;
+        esp_err_t ret = td_get_today_tasks(&delay);
         if (ret != ESP_OK) {
             ESP_LOGE(TAG, "Failed to get Todoist tasks: %s", esp_err_to_name(ret));
         }
         // Wait for a while before fetching tasks again
-        vTaskDelay(pdMS_TO_TICKS(60000)); // 1 minute delay
+        vTaskDelay(pdMS_TO_TICKS(delay));
     }
 
     ESP_LOGI(TAG, "Todoist tasks loaded successfully! Deleting task.");
+
+    xEventGroupSetBits(app_event_group, TODOIST_SET_EVENT);
+
     vTaskDelete(NULL);
 }

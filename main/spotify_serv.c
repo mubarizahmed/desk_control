@@ -36,11 +36,8 @@
 #define MAX_HTTP_OUTPUT_BUFFER 4024
 
 /* ------------------------------------------------------ */
-/*                    PRIVATE VARIABLES                   */
+/*                    PUBLIC VARIABLES                    */
 /* ------------------------------------------------------ */
-static const char *TAG = "SPOTIFY_SERV";
-
-static char response_buffer[MAX_HTTP_OUTPUT_BUFFER];
 
 EventGroupHandle_t spotify_event_group;
 
@@ -56,6 +53,12 @@ SpotifyContext g_spotify_ctx = {
     .max_retry = 3,
     .no_credentials = false,
 };
+/* ------------------------------------------------------ */
+/*                    PRIVATE VARIABLES                   */
+/* ------------------------------------------------------ */
+static const char *TAG = "SPOTIFY_SERV";
+
+static char response_buffer[MAX_HTTP_OUTPUT_BUFFER];
 
 const char *spotify_scopes = "user-read-currently-playing user-modify-playback-state";
 

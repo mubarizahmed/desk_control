@@ -11,6 +11,7 @@ idf_component_register(
   "spotify_serv.c" "spotify_serv.h"
   # "SpotifyEsp32.cpp" "SpotifyEsp32.h"
   "todoist_serv.c" "todoist_serv.h"
+  "app_events.c" "app_events.h"
   "fonts/jetbrains_mono_bold_8.c"
   "fonts/jetbrains_mono_bold_10.c"
   "fonts/jetbrains_mono_bold_12.c"

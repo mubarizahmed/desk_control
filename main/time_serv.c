@@ -13,6 +13,7 @@
 // #include "esp_netif.h"
 #include "esp_netif_sntp.h"
 
+#include "app_events.h"
 #include "display_manager.h"
 #include "time_serv.h"
 #include "ui.h"
@@ -20,9 +21,9 @@
 
 static const char *TAG = "TIME_SERV";
 
-void time_task(void *pvParameters) {
+static bool time_synced = false;
 
-    bool time_synced = false; // place this globally or at the top of your task
+void time_task(void *pvParameters) {
 
     time_t now;
     struct tm timeinfo;
@@ -56,12 +57,6 @@ void time_task(void *pvParameters) {
                 strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
                 ESP_LOGI(TAG, "The current date/time in Bochum is: %s", strftime_buf);
 
-                // if (xSemaphoreTakeRecursive(lvgl_mutex, pdMS_TO_TICKS(50))) {
-                //     setTime(timeinfo.tm_hour, timeinfo.tm_min);
-                //     xSemaphoreGiveRecursive(lvgl_mutex);
-                // } else {
-                //     ESP_LOGW(TAG, "Could not take LVGL mutex from time_task");
-                // }
                 // get date in DAY DD.MM.YYYY format
                 char date[20];
                 strftime(date, sizeof(date), "❱ %a %d.%m.%Y", &timeinfo);
@@ -74,6 +69,7 @@ void time_task(void *pvParameters) {
                 _lock_release(&lvgl_api_lock);
 
                 // setTime(timeinfo.tm_hour, timeinfo.tm_min);
+                xEventGroupSetBits(app_event_group, TIME_SET_EVENT);
 
                 time_synced = true;
             } else {
@@ -85,7 +81,7 @@ void time_task(void *pvParameters) {
 
             // log the memory usage
             size_t free_heap = esp_get_free_heap_size();
-            ESP_LOGI(TAG, "Free heap size: %d bytes", free_heap);
+            ESP_LOGI("MEMORY", "time_task Free heap size: %d bytes", free_heap);
 
         } else if (time_synced) {
 
@@ -94,13 +90,6 @@ void time_task(void *pvParameters) {
 
             strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
             ESP_LOGI(TAG, "The current date/time in Bochum is: %s", strftime_buf);
-
-            // if (xSemaphoreTakeRecursive(lvgl_mutex, pdMS_TO_TICKS(50))) {
-            //     setTime(timeinfo.tm_hour, timeinfo.tm_min);
-            //     xSemaphoreGiveRecursive(lvgl_mutex);
-            // } else {
-            //     ESP_LOGW(TAG, "Could not take LVGL mutex from time_task");
-            // }
 
             // get date in DAY DD.MM.YYYY format
             char date[20];
