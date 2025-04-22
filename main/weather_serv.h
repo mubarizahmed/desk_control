@@ -10,10 +10,9 @@
 #ifndef WEATHER_SERV_H
 #define WEATHER_SERV_H
 
-/*
- * PUBLIC FUNCTIONS
- */
-
+/* ------------------------------------------------------ */
+/*                    PUBLIC FUNCTIONS                    */
+/* ------------------------------------------------------ */
 
 void weather_task(void *pvParameters);
 

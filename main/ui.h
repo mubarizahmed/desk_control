@@ -10,15 +10,20 @@
 #ifndef UI_H
 #define UI_H
 
+/* ------------------------------------------------------ */
+/*                        INCLUDES                        */
+/* ------------------------------------------------------ */
+
 #include "lvgl.h"
 #include "todoist_serv.h"
-/*
- * PUBLIC FUNCTIONS
- */
+/* ------------------------------------------------------ */
+/*                    PUBLIC FUNCTIONS                    */
+/* ------------------------------------------------------ */
+
 void addCircle(int centerX, int centerY);
-void lvgl_demo_ui(lv_display_t *disp);
-void lv_obj_remove_border_paddin_scrollbar(lv_obj_t *sp_cover_rect);
-void addCircles(lv_obj_t *c, int centerX, int centerY, int size);
+
+void lvgl_app_ui(lv_display_t *disp);
+
 void setWeatherData(char *data);
 void setTime(int hr, int min, char *date);
 void flashPomodoroOverlay(bool red);

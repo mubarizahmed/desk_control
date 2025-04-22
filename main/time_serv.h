@@ -10,9 +10,9 @@
 #ifndef TIME_SERV_H
 #define TIME_SERV_H
 
-/*
- * PUBLIC FUNCTIONS
- */
+/* ------------------------------------------------------ */
+/*                    PUBLIC FUNCTIONS                    */
+/* ------------------------------------------------------ */
 
 void time_task(void *pvParameters);
 

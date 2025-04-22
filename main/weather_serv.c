@@ -7,6 +7,10 @@
  *
  */
 
+/* ------------------------------------------------------ */
+/*                        INCLUDES                        */
+/* ------------------------------------------------------ */
+
 #include "esp_crt_bundle.h"
 #include "esp_err.h"
 #include "esp_http_client.h"
@@ -19,6 +23,7 @@
 #include "ui.h"
 #include "weather_serv.h"
 #include "wifi_manager.h"
+
 /* ------------------------------------------------------ */
 /*                      CONFIG MACROS                     */
 /* ------------------------------------------------------ */
@@ -34,6 +39,66 @@ static const char *TAG = "WEATHER_SERV";
 static char wt_response_buffer[WT_MAX_HTTP_OUTPUT_BUFFER] = {0};
 
 static bool weather_data_loaded = false;
+
+/* ------------------------------------------------------ */
+/*               PRIVATE FUNCTION PROTOTYPES              */
+/* ------------------------------------------------------ */
+/* ------------------------- API ------------------------ */
+
+void getWeather(int *out_delay_ms);
+/* ----------------------- Utility ---------------------- */
+
+esp_err_t wt_http_event_handler(esp_http_client_event_t *evt);
+
+/* ------------------------------------------------------ */
+/*                    PRIVATE FUNCTIONS                   */
+/* ------------------------------------------------------ */
+/* ------------------------- API ------------------------ */
+
+/**
+ * @brief Get weather data from wttr.in and update the display.
+ *
+ * @param out_delay_ms - Pointer to store the delay in milliseconds.
+ */
+void getWeather(int *out_delay_ms) {
+    esp_http_client_config_t config_get = {
+        .url = "https://wttr.in/Bochum?format=%c_%l_%t_%w_%h_%m_%p",
+        .method = HTTP_METHOD_GET,
+        .crt_bundle_attach = esp_crt_bundle_attach,
+        .event_handler = wt_http_event_handler,
+        .user_data = wt_response_buffer,
+        .timeout_ms = 15000,
+    };
+
+    if (!wifi_connected) {
+        ESP_LOGI(TAG, "WiFi not connected, skipping weather data fetch.");
+    } else {
+        ESP_LOGI(TAG, "WiFi connected, fetching weather data.");
+        ESP_LOGI(TAG, "Getting weather data...");
+
+        esp_http_client_handle_t client = esp_http_client_init(&config_get);
+        esp_err_t err = esp_http_client_perform(client);
+
+        if (err == ESP_OK) {
+            ESP_LOGI(TAG, "HTTP Status = %d, content_length = %lld",
+                     esp_http_client_get_status_code(client),
+                     esp_http_client_get_content_length(client));
+            ESP_LOGI(TAG, "Weather data: %s", wt_response_buffer);
+
+            _lock_acquire(&lvgl_api_lock);
+            setWeatherData(wt_response_buffer);
+            _lock_release(&lvgl_api_lock);
+
+            *out_delay_ms = 2000; // Set delay to 2 seconds after data is loaded
+            weather_data_loaded = true;
+        } else {
+            ESP_LOGE(TAG, "HTTP GET failed: %s", esp_err_to_name(err));
+        }
+
+        esp_http_client_cleanup(client);
+    }
+}
+/* ----------------------- Utility ---------------------- */
 
 /**
  * @brief HTTP event handler for handling HTTP events.
@@ -145,44 +210,9 @@ esp_err_t wt_http_event_handler(esp_http_client_event_t *evt) {
     return ESP_OK;
 }
 
-void getWeather(int *out_delay_ms) {
-    esp_http_client_config_t config_get = {
-        .url = "https://wttr.in/Bochum?format=%c_%l_%t_%w_%h_%m_%p",
-        .method = HTTP_METHOD_GET,
-        .crt_bundle_attach = esp_crt_bundle_attach,
-        .event_handler = wt_http_event_handler,
-        .user_data = wt_response_buffer,
-        .timeout_ms = 15000,
-    };
-
-    if (!wifi_connected) {
-        ESP_LOGI(TAG, "WiFi not connected, skipping weather data fetch.");
-    } else {
-        ESP_LOGI(TAG, "WiFi connected, fetching weather data.");
-        ESP_LOGI(TAG, "Getting weather data...");
-
-        esp_http_client_handle_t client = esp_http_client_init(&config_get);
-        esp_err_t err = esp_http_client_perform(client);
-
-        if (err == ESP_OK) {
-            ESP_LOGI(TAG, "HTTP Status = %d, content_length = %lld",
-                     esp_http_client_get_status_code(client),
-                     esp_http_client_get_content_length(client));
-            ESP_LOGI(TAG, "Weather data: %s", wt_response_buffer);
-
-            _lock_acquire(&lvgl_api_lock);
-            setWeatherData(wt_response_buffer);
-            _lock_release(&lvgl_api_lock);
-
-            *out_delay_ms = 2000; // Set delay to 2 seconds after data is loaded
-            weather_data_loaded = true;
-        } else {
-            ESP_LOGE(TAG, "HTTP GET failed: %s", esp_err_to_name(err));
-        }
-
-        esp_http_client_cleanup(client);
-    }
-}
+/* ------------------------------------------------------ */
+/*                    PUBLIC FUNCTIONS                    */
+/* ------------------------------------------------------ */
 
 /**
  * @brief Task to fetch weather data from wttr.in every 30 seconds.

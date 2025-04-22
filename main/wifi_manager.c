@@ -7,6 +7,10 @@
  *
  */
 
+/* ------------------------------------------------------ */
+/*                        INCLUDES                        */
+/* ------------------------------------------------------ */
+
 #include "esp_crt_bundle.h"
 #include "esp_err.h"
 #include "esp_http_client.h"
@@ -18,14 +22,33 @@
 
 #include "wifi_manager.h"
 
+/* ------------------------------------------------------ */
+/*                    PRIVATE VARIABLES                   */
+/* ------------------------------------------------------ */
+
 static const char *TAG = "WIFI_MANAGER";
 
 static EventGroupHandle_t s_wifi_event_group; // FreeRTOS event group to signal when we are connected
 
 static int s_retry_num = 0; // Variable to track the number of connection retries
 
+/* ------------------------------------------------------ */
+/*                    PUBLIC VARIABLES                    */
+/* ------------------------------------------------------ */
+
 int8_t wifi_connected = 0; // Global variable to track WiFi connection status
 esp_ip4_addr_t ip_addr;    // Variable to store the IP address
+
+/* ------------------------------------------------------ */
+/*               PRIVATE FUNCTION PROTOTYPES              */
+/* ------------------------------------------------------ */
+
+static void wifi_event_handler(void *arg, esp_event_base_t event_base,
+                               int32_t event_id, void *event_data);
+
+/* ------------------------------------------------------ */
+/*                    PRIVATE FUNCTIONS                   */
+/* ------------------------------------------------------ */
 
 /**
  * @brief WiFi event handler function. Handles WiFi events such as connection, disconnection, and IP assignment.
@@ -67,6 +90,10 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
         wifi_connected = 1;
     }
 }
+
+/* ------------------------------------------------------ */
+/*                    PUBLIC FUNCTIONS                    */
+/* ------------------------------------------------------ */
 
 /**
  * @brief Initialize WiFi in station mode. Connects to the specified WiFi network and handles events.

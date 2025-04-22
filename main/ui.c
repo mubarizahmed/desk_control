@@ -7,6 +7,10 @@
  *
  */
 
+/* ------------------------------------------------------ */
+/*                        INCLUDES                        */
+/* ------------------------------------------------------ */
+
 #include "ui.h"
 #include "esp_log.h"
 #include "lvgl.h"
@@ -14,7 +18,10 @@
 #include "spotify_serv.h"
 #include "string.h"
 
-// colors
+/* ------------------------------------------------------ */
+/*                      CONFIG MACROS                     */
+/* ------------------------------------------------------ */
+
 #define UI_BLACK lv_color_hex(0x000000)
 #define UI_WHITE lv_color_hex(0xFFFFFF)
 #define UI_YELLOW lv_color_hex(0Xffb700)
@@ -24,7 +31,9 @@
 
 #define LV_LVGL_H_INCLUDE_SIMPLE
 
-// fonts
+/* ------------------------------------------------------ */
+/*                    PUBLIC VARIABLES                    */
+/* ------------------------------------------------------ */
 extern const lv_font_t jetbrains_mono_bold_8;
 extern const lv_font_t jetbrains_mono_bold_10;
 extern const lv_font_t jetbrains_mono_bold_12;
@@ -43,6 +52,9 @@ extern const lv_font_t jetbrains_mono_regular_14;
 extern const lv_font_t noto_color_emoji_50;
 extern const lv_font_t noto_emoji_50;
 
+/* ------------------------------------------------------ */
+/*                    PRIVATE VARIABLES                   */
+/* ------------------------------------------------------ */
 static lv_obj_t *btn;
 static lv_obj_t *scr;
 static lv_obj_t *label;
@@ -85,6 +97,44 @@ static const char *TAG = "UI";
 static int currentCenterX;
 static int currentCenterY;
 
+/* ------------------------------------------------------ */
+/*               PRIVATE FUNCTION PROTOTYPES              */
+/* ------------------------------------------------------ */
+/* ---------------------- Callbacks --------------------- */
+
+static void pomodoro_cb(lv_event_t *e);
+static void pomodoro_stop_cb(lv_event_t *e);
+static void spotify_play_cb(lv_event_t *e);
+static void spotify_next_cb(lv_event_t *e);
+static void spotify_prev_cb(lv_event_t *e);
+
+/* --------------------- UI Elements -------------------- */
+
+void createTimeWidget();
+void createTitleWidget();
+void createWeatherWidget();
+void createDateWidget();
+void createCalendarWidget();
+void createTodoistWidget();
+void createTasksWidget();
+void createPomodoroWidget();
+void createSpotifyWidget();
+
+/* ----------------------- Utility ---------------------- */
+
+void centeredGrowing(lv_obj_t *obj, int32_t size);
+void lv_obj_remove_border_paddin_scrollbar(lv_obj_t *obj);
+static lv_font_t *get_font_for_priority(uint8_t priority);
+
+/* ------------------------------------------------------ */
+/*                    PRIVATE FUNCTIONS                   */
+/* ------------------------------------------------------ */
+/* ---------------------- Callbacks --------------------- */
+/**
+ * @brief Pomodoro callback function. Called when the user clicks on the pomodoro button.
+ *
+ * @param e - lvgl event pointer
+ */
 static void pomodoro_cb(lv_event_t *e) {
     // get user data
     int8_t *v = (int8_t *)lv_event_get_user_data(e);
@@ -109,6 +159,11 @@ static void pomodoro_cb(lv_event_t *e) {
     lv_label_set_text(pomodoro_overlay_label, pomodoro_time);
 }
 
+/**
+ * @brief Pomodoro stop callback function. Called when the user clicks on the pomodoro stop button.
+ *
+ * @param e - lvgl event pointer
+ */
 static void pomodoro_stop_cb(lv_event_t *e) {
     // get user data
     stopPomodoro();
@@ -120,6 +175,11 @@ static void pomodoro_stop_cb(lv_event_t *e) {
     lv_obj_set_style_text_color(pomodoro_overlay_label, UI_WHITE, 0);
 }
 
+/**
+ * @brief Spotify play/pause callback function. Called when the user clicks on the play/pause button.
+ *
+ * @param e - lvgl event pointer
+ */
 static void spotify_play_cb(lv_event_t *e) {
     // get user data
     char *play_button_val = lv_label_get_text(sp_play_icon);
@@ -134,83 +194,34 @@ static void spotify_play_cb(lv_event_t *e) {
     }
 }
 
+/**
+ * @brief Spotify next track callback function. Called when the user clicks on the next track button.
+ *
+ * @param e - lvgl event pointer
+ */
 static void spotify_next_cb(lv_event_t *e) {
     ESP_LOGI(TAG, "Spotify next cb");
     // next_track();
     xEventGroupSetBits(spotify_event_group, SPOTIFY_CMD_NEXT);
 }
 
+/**
+ * @brief Spotify previous track callback function. Called when the user clicks on the previous track button.
+ *
+ * @param e - lvgl event pointer
+ */
 static void spotify_prev_cb(lv_event_t *e) {
     ESP_LOGI(TAG, "Spotify prev cb");
     // previous_track();
     xEventGroupSetBits(spotify_event_group, SPOTIFY_CMD_PREV);
 }
 
-static void set_angle(void *obj, int32_t v) {
-    lv_arc_set_value(obj, v);
-}
+/* --------------------- UI Elements -------------------- */
 
-void centeredGrowing(lv_obj_t *obj, int32_t size) {
-    lv_obj_set_size(obj, size, size);
-    lv_obj_set_pos(obj, currentCenterX - size / 2, currentCenterY - size / 2);
-}
-
-void addCircle(int centerX, int centerY) {
-    // delete the previous circle if it exists
-    if (circle)
-        lv_obj_del(circle);
-
-    // create style
-    lv_style_t *style = malloc(sizeof(lv_style_t));
-    lv_style_init(style);
-    lv_style_set_radius(style, 10);
-    lv_style_set_bg_opa(style, LV_OPA_COVER);
-    lv_style_set_bg_color(style, lv_color_hex(0));
-
-    // create object for drawing a circle, set style, and remove clickable flag
-    circle = lv_obj_create(lv_scr_act());
-    lv_obj_remove_style_all(circle);
-    lv_obj_add_style(circle, style, 0);
-    lv_obj_clear_flag(circle, LV_OBJ_FLAG_CLICKABLE);
-
-    // initial size is 0
-    lv_obj_set_size(circle, 0, 0);
-    currentCenterX = centerX;
-    currentCenterY = centerY;
-    lv_obj_set_pos(circle, centerX, centerY);
-
-    // animation for increasing the size of the circle
-    static lv_anim_t a;
-    lv_anim_init(&a);
-    lv_anim_set_var(&a, circle);
-    lv_anim_set_exec_cb(&a, (lv_anim_exec_xcb_t)centeredGrowing);
-    lv_anim_set_values(&a, 0, 20);
-    lv_anim_set_time(&a, 300);
-    a.act_time = 0;
-    lv_anim_start(&a);
-}
-
-void addCircles(lv_obj_t *c, int centerX, int centerY, int size) {
-    // delete the previous circle if it exists
-
-    // create style
-    lv_style_t *style = malloc(sizeof(lv_style_t));
-    lv_style_init(style);
-    lv_style_set_radius(style, 10);
-    lv_style_set_bg_opa(style, LV_OPA_COVER);
-    lv_style_set_bg_color(style, lv_color_hex(0));
-
-    // create object for drawing a circle, set style, and remove clickable flag
-    c = lv_obj_create(lv_scr_act());
-    lv_obj_remove_style_all(c);
-    lv_obj_add_style(c, style, 0);
-    lv_obj_clear_flag(c, LV_OBJ_FLAG_CLICKABLE);
-
-    // size is 6
-    lv_obj_set_size(c, size, size);
-    lv_obj_set_pos(c, centerX, centerY);
-}
-
+/**
+ * @brief Create a time widget on the screen.
+ *
+ */
 void createTimeWidget() {
     // create a rectangle for the time
     lv_obj_t *t_rect1 = lv_obj_create(scr);
@@ -243,6 +254,10 @@ void createTimeWidget() {
     lv_obj_set_style_text_letter_space(time_min_label, -3, 0);
 }
 
+/**
+ * @brief Create a title widget on the screen.
+ *
+ */
 void createTitleWidget() {
     // create a rectangle for the time
     lv_obj_t *rect = lv_obj_create(scr);
@@ -263,6 +278,10 @@ void createTitleWidget() {
     lv_obj_align(title_label, LV_ALIGN_RIGHT_MID, -4, 0);
 }
 
+/**
+ * @brief Create a weather widget on the screen.
+ *
+ */
 void createWeatherWidget() {
     // create a rectangle for the weather
     lv_obj_t *rect = lv_obj_create(scr);
@@ -324,6 +343,10 @@ void createWeatherWidget() {
     lv_obj_align_to(weather_label, rect, LV_ALIGN_TOP_RIGHT, -8, 10);
 }
 
+/**
+ * @brief Create a date widget on the screen.
+ *
+ */
 void createDateWidget() {
     // create a rectangle for the date
     lv_obj_t *rect = lv_obj_create(scr);
@@ -343,6 +366,10 @@ void createDateWidget() {
     // lv_obj_center(date_label);
 }
 
+/**
+ * @brief Create a calendar widget on the screen.
+ *
+ */
 void createCalendarWidget() {
     lv_obj_t *rect = lv_obj_create(scr);
     lv_obj_set_size(rect, 84, 78);
@@ -381,6 +408,10 @@ void createCalendarWidget() {
     lv_obj_align_to(event_2_name, rect, LV_ALIGN_TOP_LEFT, 5, 55);
 }
 
+/**
+ * @brief Create a Spotify widget on the screen.
+ *
+ */
 void createTasksWidget() {
     // create a rectangle for the tasks
     lv_obj_t *rect = lv_obj_create(scr);
@@ -427,6 +458,10 @@ void createTasksWidget() {
     lv_obj_align_to(task_4_label, rect, LV_ALIGN_TOP_LEFT, 5, 72);
 }
 
+/**
+ * @brief Create a Pomodoro widget on the screen.
+ *
+ */
 void createPomodoroWidget() {
     // create a rectangle for the tasks
     lv_obj_t *rect = lv_obj_create(scr);
@@ -546,6 +581,10 @@ void createPomodoroWidget() {
     lv_obj_add_flag(pomodoro_overlay_label, LV_OBJ_FLAG_HIDDEN);
 }
 
+/**
+ * @brief Create a Spotify widget on the screen.
+ *
+ */
 void createSpotifyWidget() {
     // create a rectangle for the tasks
     lv_obj_t *rect = lv_obj_create(scr);
@@ -632,6 +671,25 @@ void createSpotifyWidget() {
     lv_obj_align_to(sp_next_icon, sp_next_btn, LV_ALIGN_CENTER, 0, -2);
 }
 
+/* ----------------------- Utility ---------------------- */
+
+/**
+ * @brief Animation function to grow the circle to the specified size
+ *        and center it at the current coordinates.
+ *
+ *
+ * @param obj - pointer to the object to animate
+ * @param size - size to grow to
+ */
+void centeredGrowing(lv_obj_t *obj, int32_t size) {
+    lv_obj_set_size(obj, size, size);
+    lv_obj_set_pos(obj, currentCenterX - size / 2, currentCenterY - size / 2);
+}
+
+/**
+ * @brief Utility function to remove border, padding and scrollbar from an object.
+ *
+ */
 void lv_obj_remove_border_paddin_scrollbar(lv_obj_t *obj) {
     lv_obj_set_style_radius(obj, 0, LV_PART_MAIN);
     lv_obj_set_style_border_color(obj, UI_BLACK, 0);
@@ -644,25 +702,77 @@ void lv_obj_remove_border_paddin_scrollbar(lv_obj_t *obj) {
     lv_obj_set_style_pad_bottom(obj, 0, 0);
 }
 
-void lvgl_demo_ui(lv_display_t *disp) {
+/**
+ * @brief Utility function to set the font for a label based on the priority.
+ *
+ * @param label The label to set the font for.
+ * @param priority The priority of the label (0-4).
+ */
+static lv_font_t *get_font_for_priority(uint8_t priority) {
+    switch (priority) {
+    case 4:
+        return &jetbrains_mono_bold_12;
+    case 3:
+        return &jetbrains_mono_regular_12;
+    default:
+        return &jetbrains_mono_light_12;
+    }
+}
+
+/* ------------------------------------------------------ */
+/*                    PUBLIC FUNCTINOS                    */
+/* ------------------------------------------------------ */
+
+/**
+ * @brief Function to create a circle at the specified coordinates.
+ *        Useful for debugging touch debugging.
+ *
+ *
+ * @param centerX - X coordinate of the center of the circle
+ * @param centerY - Y coordinate of the center of the circle
+ */
+void addCircle(int centerX, int centerY) {
+    // delete the previous circle if it exists
+    if (circle)
+        lv_obj_del(circle);
+
+    // create style
+    lv_style_t *style = malloc(sizeof(lv_style_t));
+    lv_style_init(style);
+    lv_style_set_radius(style, 10);
+    lv_style_set_bg_opa(style, LV_OPA_COVER);
+    lv_style_set_bg_color(style, lv_color_hex(0));
+
+    // create object for drawing a circle, set style, and remove clickable flag
+    circle = lv_obj_create(lv_scr_act());
+    lv_obj_remove_style_all(circle);
+    lv_obj_add_style(circle, style, 0);
+    lv_obj_clear_flag(circle, LV_OBJ_FLAG_CLICKABLE);
+
+    // initial size is 0
+    lv_obj_set_size(circle, 0, 0);
+    currentCenterX = centerX;
+    currentCenterY = centerY;
+    lv_obj_set_pos(circle, centerX, centerY);
+
+    // animation for increasing the size of the circle
+    static lv_anim_t a;
+    lv_anim_init(&a);
+    lv_anim_set_var(&a, circle);
+    lv_anim_set_exec_cb(&a, (lv_anim_exec_xcb_t)centeredGrowing);
+    lv_anim_set_values(&a, 0, 20);
+    lv_anim_set_time(&a, 300);
+    a.act_time = 0;
+    lv_anim_start(&a);
+}
+
+/**
+ * @brief Creates the UI for the LVGL application.
+ *
+ * @param disp
+ */
+void lvgl_app_ui(lv_display_t *disp) {
     scr = lv_display_get_screen_active(disp);
-
-    // /*Create an Arc*/
-    // lv_obj_t *arc = lv_arc_create(scr);
-    // lv_arc_set_rotation(arc, 270);
-    // lv_arc_set_bg_angles(arc, 0, 360);
-    // lv_obj_remove_style(arc, NULL, LV_PART_KNOB);   /*Be sure the knob is not displayed*/
-    // lv_obj_remove_flag(arc, LV_OBJ_FLAG_CLICKABLE); /*To not allow adjusting by click*/
-    // lv_obj_center(arc);
-
-    // // Create text weather data
-    // label = lv_label_create(scr);
-    // lv_label_set_text(label, "T °C");
-    // lv_obj_center(label);
-    // lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
-    // lv_obj_set_style_text_color(label, lv_color_hex(0x000000), 0);
-    // lv_obj_set_style_text_font(label, &lv_font_montserrat_14, 0);
-    // lv_obj_set_style_text_letter_space(label, 2, 0);
 
     createTimeWidget();
     createTitleWidget();
@@ -672,36 +782,10 @@ void lvgl_demo_ui(lv_display_t *disp) {
     createTasksWidget();
     createPomodoroWidget();
     createSpotifyWidget();
-
-    // lv_anim_t a;
-    // lv_anim_init(&a);
-    // lv_anim_set_var(&a, arc);
-    // lv_anim_set_exec_cb(&a, set_angle);
-    // lv_anim_set_duration(&a, 1000);
-    // lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE); /*Just for the demo*/
-    // lv_anim_set_repeat_delay(&a, 500);
-    // lv_anim_set_values(&a, 0, 100);
-    // lv_anim_start(&a);
-
-    // // CALIBRATION
-    // // create circles at 5 points
-    // lv_obj_t *c1 = NULL;
-    // lv_obj_t *c2 = NULL;
-    // lv_obj_t *c3 = NULL;
-    // lv_obj_t *c4 = NULL;
-    // lv_obj_t *c5 = NULL;
-
-    // addCircles(c1, 25, 300, 5);
-    // addCircles(c2, 170, 170, 10);
-    // addCircles(c3, 140, 210, 15);
-    // addCircles(c4, 170, 10, 20);
-    // addCircles(c5, 64, 0, 25);
 }
 
 /**
  * @brief Set the weather data to the label.
- *
- *
  *
  * @param data Weather data string in the format "weather_location_temp_wind_humidity_moon_pressure"
  */
@@ -775,6 +859,13 @@ void setWeatherData(char *data) {
     // ESP_LOGI(TAG, "Weather data: %s", data);
 }
 
+/**
+ * @brief Set the time and date to the label.
+ *
+ * @param hr Hour in 24-hour format.
+ * @param min Minute.
+ * @param date Date string in the format "DAY DD.MM.YYYY".
+ */
 void setTime(int hr, int min, char *date) {
     // check if the time labels are created
     if (time_hr_label == NULL || time_min_label == NULL) {
@@ -809,6 +900,11 @@ void setTime(int hr, int min, char *date) {
     lv_label_set_text(date_label, date);
 }
 
+/**
+ * @brief Set the Pomodoro overlay to flash red or white.
+ *
+ * @param red True to flash red, false to flash white.
+ */
 void flashPomodoroOverlay(bool red) {
 
     if (red) {
@@ -820,10 +916,20 @@ void flashPomodoroOverlay(bool red) {
     }
 }
 
+/**
+ * @brief Set the text on the Pomodoro overlay.
+ *
+ * @param text - remaining time in the format "00:00" or Time's up!
+ */
 void setPomodoro(char *text) {
     lv_label_set_text(pomodoro_overlay_label, text);
 }
 
+/**
+ * @brief Set the calendar data to the widget.
+ *
+ * @param data Calendar data string in the format "e1_time;e1_name;e2_time;e2_name".
+ */
 void setCalendarData(char *data) {
     // split on ;
     char *token = strtok(data, ";");
@@ -858,12 +964,28 @@ void setCalendarData(char *data) {
     lv_label_set_text(event_2_time, e2_time);
     lv_label_set_text(event_2_name, e2_name);
 }
+
+/**
+ * @brief Set the Spotify data to the widget.
+ *
+ * @param name Name of the song.
+ * @param artist Name of the artist.
+ * @param playing True if playing, false if paused.
+ */
 void setSpotifyTextData(char *name, char *artist, bool playing) {
     lv_label_set_text(sp_song_label, name);
     lv_label_set_text(sp_artist_label, artist);
     lv_label_set_text(sp_play_icon, playing ? "■" : "▶");
 }
 
+/**
+ * @brief Set the Spotify data to the widget and the cover image.
+ *
+ * @param name Name of the song.
+ * @param artist Name of the artist.
+ * @param image Image data in RGB565 format.
+ * @param playing True if playing, false if paused.
+ */
 void setSpotifyData(char *name, char *artist, char *image, bool playing) {
     setSpotifyTextData(name, artist, playing);
 
@@ -886,17 +1008,12 @@ void setSpotifyData(char *name, char *artist, char *image, bool playing) {
     // lv_canvas_copy_buf(canvas, image, 64, 64);
 }
 
-static lv_font_t *get_font_for_priority(uint8_t priority) {
-    switch (priority) {
-    case 4:
-        return &jetbrains_mono_bold_12;
-    case 3:
-        return &jetbrains_mono_regular_12;
-    default:
-        return &jetbrains_mono_light_12;
-    }
-}
-
+/**
+ * @brief Set the Todoist data to the widget.
+ *
+ * @param data Todoist task data array.
+ * @param count Number of tasks.
+ */
 void setTodoistData(TodoistTaskData *data, int count) {
     lv_obj_t *task_labels[] = {
         task_1_label,

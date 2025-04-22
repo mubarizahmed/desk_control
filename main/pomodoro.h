@@ -10,6 +10,9 @@
 #ifndef POMODORO_H
 #define POMODORO_H
 
+/* ------------------------------------------------------ */
+/*                    PUBLIC FUNCTIONS                    */
+/* ------------------------------------------------------ */
 void startPomodoro(int duration); // in minutes
 void stopPomodoro(void);          // stop the timer and reset the screen
 void pomodoro_task(void *pvParameters);

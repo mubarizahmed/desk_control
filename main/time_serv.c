@@ -7,6 +7,10 @@
  *
  */
 
+/* ------------------------------------------------------ */
+/*                        INCLUDES                        */
+/* ------------------------------------------------------ */
+
 #include "esp_err.h"
 #include "esp_log.h"
 #include "esp_sntp.h"
@@ -19,10 +23,23 @@
 #include "ui.h"
 #include "wifi_manager.h"
 
+/* ------------------------------------------------------ */
+/*                    PRIVATE VARIABLES                   */
+/* ------------------------------------------------------ */
+
 static const char *TAG = "TIME_SERV";
 
 static bool time_synced = false;
 
+/* ------------------------------------------------------ */
+/*                    PUBLIC FUNCTIONS                    */
+/* ------------------------------------------------------ */
+
+/**
+ * @brief Task to handle time synchronization and updates.
+ *
+ * @param pvParameters - Pointer to task parameters (not used).
+ */
 void time_task(void *pvParameters) {
 
     time_t now;

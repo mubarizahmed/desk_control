@@ -10,9 +10,9 @@
 #ifndef DISPLAY_MANAGER_H
 #define DISPLAY_MANAGER_H
 
-/*
- * PUBLIC MACROS
- */
+/* ------------------------------------------------------ */
+/*                      PUBLIC MACROS                     */
+/* ------------------------------------------------------ */
 
 #define LCD_HOST SPI2_HOST // SPI2_HOST - HSPI
 
@@ -33,10 +33,16 @@
 #define LVGL_TASK_STACK_SIZE (4 * 1024) // Stack size for LVGL task
 #define LVGL_TASK_PRIORITY 2            // Priority for LVGL task
 
+/* ------------------------------------------------------ */
+/*                    PUBLIC VARIABLES                    */
+/* ------------------------------------------------------ */
+
 extern _lock_t lvgl_api_lock; // mutex for LVGL API
-/*
- * PUBLIC FUNCTIONS
- */
+
+/* ------------------------------------------------------ */
+/*                    PUBLIC FUNCTIONS                    */
+/* ------------------------------------------------------ */
+
 void display_manager_init(void);
 
 #endif // DISPLAY_MANAGER_H

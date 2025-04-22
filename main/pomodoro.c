@@ -7,6 +7,9 @@
  *
  */
 
+/* ------------------------------------------------------ */
+/*                        INCLUDES                        */
+/* ------------------------------------------------------ */
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
@@ -17,23 +20,24 @@
 
 #include "pomodoro.h"
 
-// POMODORO implementation concept
-// 1. Timer set
-// 2. Tick every minute to update GUI
-// 3. When timer is up, flash the screen and play a sound
-// 4. When the user presses the button, stop the timer and reset the screen
-
-// needed fns
-// 1. setPomodoroTime(int min) - set the time on the screen
-// 2. startPomodoro() - start the timer
-// 3. stopPomodoro() - reset the timer and stop the sound
-
+/* ------------------------------------------------------ */
+/*                    PRIVATE VARIABLES                   */
+/* ------------------------------------------------------ */
 static const char *TAG = "POMODORO";
 
 static bool pomodoro_running = false;
 static int pomodoro_duration = 0; // in minutes
 static time_t start_time;
 
+/* ------------------------------------------------------ */
+/*                    PUBLIC FUNCTIONS                    */
+/* ------------------------------------------------------ */
+
+/**
+ * @brief Task to handle the Pomodoro timer.
+ *
+ * @param pvParameters - Pointer to task parameters (not used).
+ */
 void pomodoro_task(void *pvParameters) {
 
     while (1) {
@@ -98,6 +102,11 @@ void pomodoro_task(void *pvParameters) {
     }
 }
 
+/**
+ * @brief Start the Pomodoro timer.
+ *
+ * @param min - Duration in minutes.
+ */
 void startPomodoro(int min) {
     pomodoro_duration = min;
     start_time = time(NULL);
@@ -105,6 +114,9 @@ void startPomodoro(int min) {
     ESP_LOGI(TAG, "Pomodoro time set to %d minutes", pomodoro_duration);
 }
 
+/**
+ * @brief Stop the Pomodoro timer.
+ */
 void stopPomodoro() {
     pomodoro_running = false;
     ESP_LOGI(TAG, "Pomodoro timer stopped");

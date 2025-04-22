@@ -10,6 +10,7 @@
 /* ------------------------------------------------------ */
 /*                        INCLUDES                        */
 /* ------------------------------------------------------ */
+
 #include "cJSON.h"
 #include "esp_crt_bundle.h"
 #include "esp_err.h"
@@ -33,6 +34,7 @@
 /* ------------------------------------------------------ */
 /*                     CONFIG MACROS                      */
 /* ------------------------------------------------------ */
+
 #define MAX_HTTP_OUTPUT_BUFFER 4024
 
 /* ------------------------------------------------------ */
@@ -53,9 +55,11 @@ SpotifyContext g_spotify_ctx = {
     .max_retry = 3,
     .no_credentials = false,
 };
+
 /* ------------------------------------------------------ */
 /*                    PRIVATE VARIABLES                   */
 /* ------------------------------------------------------ */
+
 static const char *TAG = "SPOTIFY_SERV";
 
 static char response_buffer[MAX_HTTP_OUTPUT_BUFFER];
@@ -71,17 +75,20 @@ extern const uint8_t server_key_pem_end[] asm("_binary_server_key_pem_end");
 /*              PRIVATE FUNCTION DECLARATIONS             */
 /* ------------------------------------------------------ */
 /* ------------------- Authentication ------------------- */
+
 bool sp_is_authorized(const SpotifyContext *ctx);
 bool sp_has_refresh_token(const SpotifyContext *ctx);
 bool sp_exchange_code_refresh_token(const char *auth_code, const char *redirect_uri);
 bool sp_fetch_access_token(SpotifyContext *ctx);
 void sp_get_auth(SpotifyContext *ctx);
 /* ---------------------- Webserver --------------------- */
+
 esp_err_t sp_handle_root_get(httpd_req_t *req);
 esp_err_t sp_handle_callback(httpd_req_t *req);
 esp_err_t sp_handle_get(httpd_req_t *req);
 esp_err_t sp_start_webserver(SpotifyContext *ctx);
 /* -------------------- Playback API -------------------- */
+
 esp_err_t sp_get_current_playback(SpotifyContext *ctx, CurrentlyPlayingData *data);
 void sp_get_image(const char *url, char *out_buffer, size_t buffer_size, int64_t *out_image_size);
 void sp_update_current_playback(SpotifyContext *ctx, int32_t *out_delay_ms);
@@ -90,12 +97,14 @@ esp_err_t sp_previous_track();
 esp_err_t sp_resume_track();
 esp_err_t sp_pause_track();
 /* ----------------------- Utility ---------------------- */
+
 esp_err_t sp_http_event_handler(esp_http_client_event_t *evt);
 
 /* ------------------------------------------------------ */
 /*                    PRIVATE FUNCTIONS                   */
 /* ------------------------------------------------------ */
 /* ------------------- Authentication ------------------- */
+
 /**
  * @brief Check if the access token, client_id, client_secret, and refresh_token are set.
  *
@@ -1311,11 +1320,7 @@ esp_err_t sp_http_event_handler(esp_http_client_event_t *evt) {
 /* ------------------------------------------------------ */
 /*                    PUBLIC FUNCTIONS                    */
 /* ------------------------------------------------------ */
-/**
- * @brief Task to handle Spotify commands and update playback information.
- *
- * @param pvParameters - Pointer to task parameters (not used)
- */
+
 void spotify_task(void *pvParameters) {
     // Wait for WiFi to connect
     while (wifi_connected == 0) {

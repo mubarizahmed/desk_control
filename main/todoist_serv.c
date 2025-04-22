@@ -61,6 +61,7 @@ void strncpy_with_dots(char *dest, const char *src, size_t max_len);
 /* ------------------------------------------------------ */
 /*                    PRIVATE FUNCTIONS                   */
 /* ------------------------------------------------------ */
+
 /**
  * @brief Get the tasks for today from Todoist API.
  *

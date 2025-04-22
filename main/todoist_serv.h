@@ -23,6 +23,7 @@ typedef struct {
 /* ------------------------------------------------------ */
 /*                    PUBLIC FUNCTIONS                    */
 /* ------------------------------------------------------ */
+
 void todoist_task(void *pvParameters);
 
 #endif /* TODOIST_SERV_H */

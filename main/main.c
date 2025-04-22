@@ -7,6 +7,10 @@
  *
  */
 
+/* ------------------------------------------------------ */
+/*                        INCLUDES                        */
+/* ------------------------------------------------------ */
+
 #include "driver/gpio.h"
 #include "esp_err.h"
 #include "esp_log.h"
@@ -33,7 +37,26 @@
 #include "weather_serv.h"
 #include "wifi_manager.h"
 
+/* ------------------------------------------------------ */
+/*                    PRIVATE VARIABLES                   */
+/* ------------------------------------------------------ */
+
 static const char *TAG = "MAIN";
+
+/* ------------------------------------------------------ */
+/*                    PRIVATE FUNCTIONS                   */
+/* ------------------------------------------------------ */
+
+/**
+ * @brief Custom memory allocation function for mbedtls.
+ *
+ * @param n Number of elements to allocate.
+ * @param size Size of each element.
+ * @return Pointer to the allocated memory.
+ */
+void *my_calloc(size_t n, size_t size) {
+    return heap_caps_calloc(n, size, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+}
 
 /**
  * @brief Main application entry point.
@@ -68,7 +91,7 @@ void app_main(void) {
     ESP_LOGI(TAG, "NVS handle opened successfully");
     nvs_close(my_handle);
 
-
+    mbedtls_platform_set_calloc_free(my_calloc, free);
 
     // esp_log_level_set("wifi", ESP_LOG_VERBOSE);
 

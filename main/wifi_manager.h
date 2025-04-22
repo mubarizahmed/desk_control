@@ -10,12 +10,16 @@
 #ifndef WIFI_MANAGER_H
 #define WIFI_MANAGER_H
 
+/* ------------------------------------------------------ */
+/*                        INCLUDES                        */
+/* ------------------------------------------------------ */
+
 #include "esp_wifi.h"
 #include "secret_conf.h"
 
-/*
- * PUBLIC MACROS
- */
+/* ------------------------------------------------------ */
+/*                      PUBLIC MACROS                     */
+/* ------------------------------------------------------ */
 
 #define ESP_WIFI_SSID CONFIG_ESP_WIFI_SSID
 #define ESP_WIFI_PASS CONFIG_ESP_WIFI_PASSWORD
@@ -58,16 +62,16 @@
 #define MAX_HTTP_RECV_BUFFER 512
 #define MAX_HTTP_OUTPUT_BUFFER 512
 
-/*
- * PUBLIC VARIABLES
- */
+/* ------------------------------------------------------ */
+/*                    PUBLIC VARIABLES                    */
+/* ------------------------------------------------------ */
 
 extern int8_t wifi_connected;
 extern esp_ip4_addr_t ip_addr;
 
-/*
- * PUBLIC FUNCTIONS
- */
+/* ------------------------------------------------------ */
+/*                    PUBLIC FUNCTIONS                    */
+/* ------------------------------------------------------ */
 
 void wifi_init_sta(void);
 

@@ -13,11 +13,13 @@
 /* ------------------------------------------------------ */
 /*                        INCLUDES                        */
 /* ------------------------------------------------------ */
+
 #include "esp_http_server.h"
 
 /* ------------------------------------------------------ */
 /*                        TYPEDEFS                        */
 /* ------------------------------------------------------ */
+
 typedef struct {
     char client_id[100];
     char client_secret[100];
@@ -46,12 +48,14 @@ typedef struct {
 /* ------------------------------------------------------ */
 /*                    PUBLIC VARIABLES                    */
 /* ------------------------------------------------------ */
+
 extern SpotifyContext g_spotify_ctx;
 extern EventGroupHandle_t spotify_event_group;
 
 /* ------------------------------------------------------ */
 /*                      PUBLIC MACROS                     */
 /* ------------------------------------------------------ */
+
 #define SPOTIFY_CMD_RESUME BIT0
 #define SPOTIFY_CMD_PAUSE BIT1
 #define SPOTIFY_CMD_PREV BIT2

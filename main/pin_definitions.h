@@ -10,9 +10,9 @@
 #ifndef PIN_DEFINITIONS_H
 #define PIN_DEFINITIONS_H
 
-/*
- * GPIO pin definitions for the ESP32-S3-DevKitC-1
- */
+/* ------------------------------------------------------ */
+/*      GPIO pin definitions for the ESP32-DevKitC-v4     */
+/* ------------------------------------------------------ */
 
 #define PIN_NUM_SCLK 14     // GPIO14 (SCLK) - SPI2 Clock
 #define PIN_NUM_MOSI 13     // GPIO13 (MOSI) - SPI2 Master Out Slave In

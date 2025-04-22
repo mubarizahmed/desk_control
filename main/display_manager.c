@@ -7,6 +7,9 @@
  *
  */
 
+/* ------------------------------------------------------ */
+/*                        INCLUDES                        */
+/* ------------------------------------------------------ */
 #include "driver/gpio.h"
 #include "driver/spi_master.h"
 #include "esp_lcd_panel_io.h"
@@ -27,10 +30,29 @@
 
 #include "display_manager.h"
 
+/* ------------------------------------------------------ */
+/*                    PRIVATE VARIABLES                   */
+/* ------------------------------------------------------ */
+
 static const char *TAG = "DISPLAY_MANAGER"; // Log tag
 
 _lock_t lvgl_api_lock;        // mutex for LVGL API
 SemaphoreHandle_t lvgl_mutex; // semaphore for LVGL API
+
+/* ------------------------------------------------------ */
+/*               PRIVATE FUNCTION PROTOTYPES              */
+/* ------------------------------------------------------ */
+
+static bool notify_lvgl_flush_ready(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_io_event_data_t *edata, void *user_ctx);
+static void lvgl_port_update_callback(lv_display_t *disp);
+static void lvgl_flush_cb(lv_display_t *disp, const lv_area_t *area, uint8_t *px_map);
+static void lvgl_touch_cb(lv_indev_t *indev, lv_indev_data_t *data);
+static void increase_lvgl_tick(void *arg);
+static void lvgl_port_task(void *arg);
+
+/* ------------------------------------------------------ */
+/*                    PRIVATE FUNCTIONS                   */
+/* ------------------------------------------------------ */
 
 /**
  * @brief LVGL flush callback function. Called when LVGL needs to update the display.
@@ -243,11 +265,7 @@ void display_manager_init() {
     gpio_set_level(PIN_NUM_BK_LIGHT, LCD_BK_LIGHT_ON_LEVEL);
 
     ESP_LOGI(TAG, "Initialize LVGL library");
-    // lvgl_mutex = xSemaphoreCreateRecursiveMutex();
-    // if (lvgl_mutex == NULL) {
-    //     ESP_LOGE(TAG, "Failed to create LVGL mutex");
-    //     return;
-    // }
+
     lv_init();
 
     // create a lvgl display
@@ -324,6 +342,6 @@ void display_manager_init() {
     ESP_LOGI(TAG, "Display LVGL Meter Widget");
     // Lock the mutex due to the LVGL APIs are not thread-safe
     _lock_acquire(&lvgl_api_lock);
-    lvgl_demo_ui(display);
+    lvgl_app_ui(display);
     _lock_release(&lvgl_api_lock);
 }

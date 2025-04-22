@@ -10,9 +10,9 @@
 #ifndef CALENDAR_SERV_H
 #define CALENDAR_SERV_H
 
-/**
- * PUBLIC FUNCTIONS
- */
+/* ------------------------------------------------------ */
+/*                    PUBLIC FUNCTIONS                    */
+/* ------------------------------------------------------ */
 
 void calendar_task(void *pvParameters);
 
