@@ -840,6 +840,7 @@ void sp_get_image(const char *url, char *out_buffer, size_t buffer_size, int64_t
  * @param out_delay_ms - Pointer to store the delay for the next update
  */
 void sp_update_current_playback(SpotifyContext *ctx, int32_t *out_delay_ms) {
+    *out_delay_ms = 30000; // Default delay of 30 seconds
     CurrentlyPlayingData *data = (CurrentlyPlayingData *)malloc(sizeof(CurrentlyPlayingData));
 
     if (data == NULL) {
