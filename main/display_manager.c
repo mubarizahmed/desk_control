@@ -316,10 +316,10 @@ void display_manager_init() {
     lv_indev_set_user_data(indev, tp);
     lv_indev_set_read_cb(indev, lvgl_touch_cb);
 
+    lv_disp_set_rotation(display, LV_DISP_ROTATION_270);
+
     ESP_LOGI(TAG, "Create LVGL task");
     xTaskCreate(lvgl_port_task, "LVGL", 6 * LVGL_TASK_STACK_SIZE, NULL, LVGL_TASK_PRIORITY, NULL);
-
-    lv_disp_set_rotation(display, LV_DISP_ROTATION_270);
 
     ESP_LOGI(TAG, "Display LVGL Meter Widget");
     // Lock the mutex due to the LVGL APIs are not thread-safe
