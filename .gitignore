@@ -18,3 +18,36 @@ main/SpotifyEsp32.h
 main/SpotifyEsp32.cpp
 main/wifi_conf.h
 main/secret_conf.h
+
+
+# ---> KiCad
+# For PCBs designed using KiCad: https://www.kicad.org/
+# Format documentation: https://kicad.org/help/file-formats/
+
+# Temporary files
+eda/**/*.000
+eda/**/*.bak
+eda/**/*.bck
+eda/**/*.kicad_pcb-bak
+eda/**/*.kicad_sch-bak
+eda/**/*-backups
+eda/**/*.kicad_prl
+eda/**/*.sch-bak
+eda/**/*~
+eda/**/_autosave-*
+eda/**/*.tmp
+eda/**/*-save.pro
+eda/**/*-save.kicad_pcb
+eda/**/fp-info-cache
+
+
+# Netlist files (exported from Eeschema)
+eda/**/*.net
+
+# Autorouter files (exported from Pcbnew)
+eda/**/*.dsn
+eda/**/*.ses
+
+# Exported BOM files
+eda/**/*.xml
+# eda/**/*.csv
