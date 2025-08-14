@@ -18,11 +18,11 @@ This is a simple physical widget that sits on your desk and allows you to perfor
 
 - **Todoist Integration** - View and complete your upcoming tasks from Todoist.
 
-## Planned Features
-
 - **PCB Design** - Single PCB design that can be printed on PCBWay or JLCPCB.
 
-- **Housing** - §D printed housing for the PCB and screen.
+## Planned Features
+
+- **Housing** - 3D printed housing for the PCB and screen.
 
 - **Sensor Integration** - Add more sensors to the project - maybe a temperature sensor, humidity sensor, etc. to get more data from the environment.
 
@@ -35,6 +35,23 @@ The hardware setup is a work in progress. I will be updating this section as I g
 - **Microcontroller** - ESP32-DevKitC-v4
 - **Display** - 2.4" TFT LCD (ILI9341) with SPI interface
 - **Rotary Encoder** - KY-040 rotary encoder with push button.
+
+A custom PCB has been designed but not yet tested. The schematic and KiCAD project files are available in the `eda` folder.
+
+<div align="center">
+  <img src="eda/desk_control_schematic_color.png" alt="Mock UI" width="200"/>
+</div>
+
+[Schematic](eda/desk_control_schematic_color.png)
+
+<div align="center" style="display: flex; justify-content: center; align-items: center;">
+  <img src="eda/front.png" alt="Mock UI" width="200"/>
+  <img src="eda/back.png" alt="Mock UI" width="200"/>
+</div>
+
+[PCB Front](eda/front.png) | [PCB Back](eda/back.png)
+
+[KiCAD Project](eda/desk_control)
 
 Pin definitions are given in [here](/main/pin_definitions.h).
 
