@@ -3,7 +3,7 @@
 This is a simple physical widget that sits on your desk and allows you to perform some basic productivity tasks. It works independently of your computer or phone and hence, _in theory_, it should help you focus on your work. It is a work in progress and I will be adding more features as I go along.
 
 <div align="center" style="display: flex; justify-content: center; align-items: center;">
-  <img src="docs/current.jpg" alt="Mock UI" width="200"/>
+  <img src="docs/current.jpg" alt="Actual UI" width="200"/>
   <img src="docs/Mockup.png" alt="Mock UI" width="200"/>
 </div>
 
@@ -39,14 +39,14 @@ The hardware setup is a work in progress. I will be updating this section as I g
 A custom PCB has been designed but not yet tested. The schematic and KiCAD project files are available in the `eda` folder.
 
 <div align="center">
-  <img src="eda/desk_control_schematic_color.png" alt="Mock UI" width="200"/>
+  <img src="eda/desk_control_schematic_color.png" alt="Schematic" />
 </div>
 
 [Schematic](eda/desk_control_schematic_color.png)
 
 <div align="center" style="display: flex; justify-content: center; align-items: center;">
-  <img src="eda/front.png" alt="Mock UI" width="200"/>
-  <img src="eda/back.png" alt="Mock UI" width="200"/>
+  <img src="eda/front.png" alt="PCB Front" width="200"/>
+  <img src="eda/back.png" alt="PCB Back" width="200"/>
 </div>
 
 [PCB Front](eda/front.png) | [PCB Back](eda/back.png)
